@@ -1,0 +1,59 @@
+# Reglas de limpieza declarativas. Cada ruta es un directorio cuyo CONTENIDO se limpia.
+# Se admiten variables de entorno al estilo %VAR%.
+# `safe = true` => se marca por defecto en la interfaz.
+
+[[rule]]
+id = "user-temp"
+name = "Temporales del usuario"
+category = "Sistema"
+description = "Archivos temporales de las aplicaciones del usuario."
+paths = ["%TEMP%"]
+safe = true
+
+[[rule]]
+id = "windows-temp"
+name = "Temporales de Windows"
+category = "Sistema"
+description = "Carpeta Temp del sistema (puede requerir administrador)."
+paths = ["%WINDIR%\\Temp"]
+safe = true
+
+[[rule]]
+id = "thumbnails"
+name = "Caché de miniaturas"
+category = "Sistema"
+description = "Miniaturas del Explorador; Windows las regenera."
+paths = ["%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer"]
+safe = true
+
+[[rule]]
+id = "crash-dumps"
+name = "Volcados de error"
+category = "Sistema"
+description = "Informes y volcados de fallos de aplicaciones."
+paths = ["%LOCALAPPDATA%\\CrashDumps", "%LOCALAPPDATA%\\Microsoft\\Windows\\WER"]
+safe = true
+
+[[rule]]
+id = "chrome-cache"
+name = "Chrome: caché"
+category = "Navegadores"
+description = "Caché de Google Chrome (no toca contraseñas ni cookies)."
+paths = ["%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data"]
+safe = true
+
+[[rule]]
+id = "edge-cache"
+name = "Edge: caché"
+category = "Navegadores"
+description = "Caché de Microsoft Edge (no toca contraseñas ni cookies)."
+paths = ["%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache\\Cache_Data"]
+safe = true
+
+[[rule]]
+id = "firefox-cache"
+name = "Firefox: caché"
+category = "Navegadores"
+description = "Caché de Mozilla Firefox."
+paths = ["%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles"]
+safe = false

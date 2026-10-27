@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "levnikolaevich-skills-marketplace": {
+      "source": { "source": "github", "repo": "levnikolaevich/claude-code-skills" }
+    }
+  },
+  "enabledPlugins": {
+    "architecture-suite@levnikolaevich-skills-marketplace": true,
+    "product-discovery-suite@levnikolaevich-skills-marketplace": true,
+    "quality-assurance-suite@levnikolaevich-skills-marketplace": true,
+    "implementation-suite@levnikolaevich-skills-marketplace": true
+  }
+}
