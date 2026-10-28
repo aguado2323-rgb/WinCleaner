@@ -8,6 +8,7 @@
   import Debloat from './Debloat.svelte';
   import Uninstall from './Uninstall.svelte';
   import Tweaks from './Tweaks.svelte';
+  import Services from './Services.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
@@ -17,6 +18,7 @@
     ['uninstall', 'Desinstalar'],
     ['debloat', 'Preinstaladas'],
     ['tweaks', 'Ajustes de Windows'],
+    ['services', 'Servicios'],
     ['restore', 'Restauración'],
   ];
 
@@ -28,6 +30,7 @@
     startup: 'M12 3v9M6.3 6.8a8 8 0 1 0 11.4 0',
     uninstall: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
     debloat: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5',
+    services: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8',
     tweaks: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
     restore: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5M12 8v4l3 2',
   };
@@ -140,6 +143,8 @@
           <Debloat {notify} />
         {:else if view === 'tweaks'}
           <Tweaks {notify} />
+        {:else if view === 'services'}
+          <Services {notify} />
         {:else if view === 'restore'}
           <Restore {notify} />
         {:else}
@@ -159,7 +164,7 @@
 
 <style>
   .shell { display: grid; grid-template-columns: 218px 1fr; height: 100vh; }
-  aside { display: flex; flex-direction: column; padding: 24px 12px 20px; background: var(--side); color: var(--side-ink); }
+  aside { display: flex; flex-direction: column; overflow-y: auto; padding: 24px 12px 20px; background: var(--side); color: var(--side-ink); }
   .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px; margin-bottom: 30px; font-family: var(--display); font-size: 20px; letter-spacing: -0.03em; }
   .brand b { font-weight: 700; color: var(--accent); }
   .logo { flex: none; width: 36px; height: 36px; border-radius: 9px; }
