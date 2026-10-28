@@ -6,13 +6,15 @@
   import Startup from './Startup.svelte';
   import Restore from './Restore.svelte';
   import Debloat from './Debloat.svelte';
+  import Uninstall from './Uninstall.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
     ['quarantine', 'Cuarentena'],
     ['space', 'Espacio'],
     ['startup', 'Arranque'],
-    ['debloat', 'Aplicaciones'],
+    ['uninstall', 'Desinstalar'],
+    ['debloat', 'Preinstaladas'],
     ['restore', 'Restauración'],
   ];
 
@@ -69,6 +71,8 @@
           <Space {notify} />
         {:else if view === 'startup'}
           <Startup {notify} />
+        {:else if view === 'uninstall'}
+          <Uninstall {notify} {refreshQuarantine} />
         {:else if view === 'debloat'}
           <Debloat {notify} />
         {:else if view === 'restore'}

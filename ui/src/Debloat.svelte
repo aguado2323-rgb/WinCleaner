@@ -61,7 +61,7 @@
   load();
 </script>
 
-<p class="label">Aplicaciones</p>
+<p class="label">Preinstaladas</p>
 <h1 class="h1">Quita lo que no pediste.</h1>
 <p class="lede">Aplicaciones que vienen preinstaladas con Windows o con tu equipo. Solo aparecen las que están instaladas y se pueden quitar sin romper nada. Todas se reinstalan desde Microsoft Store.</p>
 
