@@ -115,6 +115,10 @@ export const H = {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
   },
+  servicesInfo: {
+    risk: 'reversible',
+    text: 'Un servicio es un programa de Windows que arranca solo con el equipo. «Pasar a Manual» no lo elimina ni lo detiene: solo evita que arranque solo, y Windows lo inicia si algo lo pide. «Deshacer» devuelve el tipo de inicio que tenía antes. Solo se muestran servicios de una lista cerrada que no afecta a la seguridad ni a las actualizaciones. Necesita administrador.',
+  },
   tweakPoint: {
     risk: 'safe',
     text: 'Guarda una foto de la configuración de Windows antes del primer ajuste de esta sesión, por si quieres volver a ella desde «Restauración». Pide administrador y Windows solo permite un punto cada 24 horas; si no se puede crear, los ajustes se aplican igualmente porque cada uno se puede deshacer.',
