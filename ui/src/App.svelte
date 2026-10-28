@@ -11,6 +11,7 @@
   import Duplicates from './Duplicates.svelte';
   import Services from './Services.svelte';
   import Updates from './Updates.svelte';
+  import Power from './Power.svelte';
   import Schedule from './Schedule.svelte';
 
   const sections = [
@@ -24,6 +25,7 @@
     ['debloat', 'Preinstaladas'],
     ['tweaks', 'Ajustes de Windows'],
     ['services', 'Servicios'],
+    ['power', 'Energía'],
     ['schedule', 'Programación'],
     ['restore', 'Restauración'],
   ];
@@ -39,6 +41,7 @@
     updates: 'M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14',
     debloat: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5',
     services: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8',
+    power: 'M13 3L5 13.5h6L10 21l8-10.5h-6z',
     schedule: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
     tweaks: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
     restore: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5M12 8v4l3 2',
@@ -158,6 +161,8 @@
           <Tweaks {notify} />
         {:else if view === 'services'}
           <Services {notify} />
+        {:else if view === 'power'}
+          <Power {notify} />
         {:else if view === 'schedule'}
           <Schedule {notify} {refreshQuarantine} />
         {:else if view === 'restore'}

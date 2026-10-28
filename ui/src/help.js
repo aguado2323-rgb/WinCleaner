@@ -127,6 +127,14 @@ export const H = {
     risk: 'care',
     text: 'Usa winget, el gestor de paquetes oficial de Windows, para buscar versiones nuevas de tus programas. WinCleaner no descarga nada por su cuenta: es winget quien baja e instala, con el instalador del propio fabricante. Una actualización puede cambiar el programa o pedir permisos de administrador; no se puede deshacer desde aquí, así que revisa la lista y cierra antes los programas que vayas a actualizar.',
   },
+  powerInfo: {
+    risk: 'reversible',
+    text: 'El plan de energía decide cuánto rinde el equipo y cuánta batería gasta. Cambiar de plan es inmediato y siempre puedes volver al anterior desde esta misma lista. «Equilibrado» es lo normal; los planes de más rendimiento gastan más batería y calientan más.',
+  },
+  powerUltimate: {
+    risk: 'care',
+    text: 'Añade el plan oculto «Máximo rendimiento» de Windows (no hace nada hasta que lo actives). Es para equipos enchufados: en una portátil o consola portátil con batería la gastará mucho más rápido y puede subir la temperatura. No todos los equipos lo ofrecen.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
