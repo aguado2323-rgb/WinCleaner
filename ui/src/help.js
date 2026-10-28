@@ -123,6 +123,10 @@ export const H = {
     risk: 'final',
     text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
   },
+  reportInfo: {
+    risk: 'safe',
+    text: 'Resumen de lo que WinCleaner ha hecho en este equipo: cuánto se movió a la cuarentena, cuánto se borró de verdad y cuántas limpiezas hubo. Solo guarda cifras y fechas, nunca nombres ni rutas de tus archivos, y no sale de tu equipo.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',

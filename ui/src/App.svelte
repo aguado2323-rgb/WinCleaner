@@ -10,6 +10,7 @@
   import Tweaks from './Tweaks.svelte';
   import Duplicates from './Duplicates.svelte';
   import Services from './Services.svelte';
+  import Report from './Report.svelte';
   import Schedule from './Schedule.svelte';
 
   const sections = [
@@ -23,6 +24,7 @@
     ['tweaks', 'Ajustes de Windows'],
     ['services', 'Servicios'],
     ['schedule', 'Programación'],
+    ['report', 'Informe'],
     ['restore', 'Restauración'],
   ];
 
@@ -38,6 +40,7 @@
     services: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8',
     schedule: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
     tweaks: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
+    report: 'M5 20V10M12 20V4M19 20v-7',
     restore: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5M12 8v4l3 2',
   };
 
@@ -155,6 +158,8 @@
           <Services {notify} />
         {:else if view === 'schedule'}
           <Schedule {notify} {refreshQuarantine} />
+        {:else if view === 'report'}
+          <Report {notify} />
         {:else if view === 'restore'}
           <Restore {notify} />
         {:else}

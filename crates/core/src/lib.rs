@@ -5,6 +5,7 @@ mod clean;
 mod debloat;
 mod disk;
 mod duplicates;
+mod history;
 mod protect;
 mod restore;
 mod services;
@@ -41,3 +42,4 @@ pub use schedule::{
     last_run as schedule_last_run, load as schedule_load, run_now as schedule_run_now, run_scheduled, schedule_save, task_exists as schedule_task_exists,
     AutoMode, Freq, LastRun, Schedule,
 };
+pub use history::{record as history_record, report as history_report, Event as HistoryEvent, Kind as HistoryKind, Report as UsageReport};
