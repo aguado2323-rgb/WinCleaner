@@ -12,6 +12,7 @@
   import Services from './Services.svelte';
   import Updates from './Updates.svelte';
   import Power from './Power.svelte';
+  import Report from './Report.svelte';
   import Schedule from './Schedule.svelte';
 
   const sections = [
@@ -27,6 +28,7 @@
     ['services', 'Servicios'],
     ['power', 'Energía'],
     ['schedule', 'Programación'],
+    ['report', 'Informe'],
     ['restore', 'Restauración'],
   ];
 
@@ -44,6 +46,7 @@
     power: 'M13 3L5 13.5h6L10 21l8-10.5h-6z',
     schedule: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
     tweaks: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
+    report: 'M5 20V10M12 20V4M19 20v-7',
     restore: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5M12 8v4l3 2',
   };
 
@@ -165,6 +168,8 @@
           <Power {notify} />
         {:else if view === 'schedule'}
           <Schedule {notify} {refreshQuarantine} />
+        {:else if view === 'report'}
+          <Report {notify} />
         {:else if view === 'restore'}
           <Restore {notify} />
         {:else}

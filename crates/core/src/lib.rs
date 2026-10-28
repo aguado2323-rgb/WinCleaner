@@ -6,6 +6,7 @@ mod debloat;
 mod disk;
 mod duplicates;
 mod power;
+mod history;
 mod protect;
 mod recycle;
 mod restore;
@@ -47,3 +48,4 @@ pub use schedule::{
 pub use updates::{update_apply, updates_list, Update};
 pub use power::{power_add_ultimate, power_plans, power_set, Plan};
 pub use recycle::{recycle_empty, recycle_info, RecycleInfo};
+pub use history::{record as history_record, report as history_report, Event as HistoryEvent, Kind as HistoryKind, Report as UsageReport};

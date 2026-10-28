@@ -125,6 +125,12 @@ pub fn run_with(rules: &[Rule], cfg: &Schedule, data_dir: &Path, quarantine_dir:
             }
         }
     }
+    if cfg.mode == AutoMode::Clean {
+        crate::history::record(
+            data_dir,
+            crate::history::Event { when: now, kind: crate::history::Kind::Auto, files: run.files, bytes: run.bytes },
+        );
+    }
     let _ = std::fs::create_dir_all(data_dir);
     if let Ok(bytes) = serde_json::to_vec_pretty(&run) {
         let _ = std::fs::write(data_dir.join(LAST_FILE), bytes);

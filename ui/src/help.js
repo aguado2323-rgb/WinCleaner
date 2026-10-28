@@ -139,6 +139,10 @@ export const H = {
     risk: 'final',
     text: 'Vacía la Papelera de reciclaje de todas las unidades con la función oficial de Windows. A diferencia de la limpieza normal, esto NO pasa por la cuarentena y no se puede deshacer: revisa la Papelera antes si no estás seguro de lo que hay dentro.',
   },
+  reportInfo: {
+    risk: 'safe',
+    text: 'Resumen de lo que WinCleaner ha hecho en este equipo: cuánto se movió a la cuarentena, cuánto se borró de verdad y cuántas limpiezas hubo. Solo guarda cifras y fechas, nunca nombres ni rutas de tus archivos, y no sale de tu equipo.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',

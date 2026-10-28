@@ -12,6 +12,7 @@ use wincleaner_core::{
     update_apply, updates_list, Update,
     power_add_ultimate, power_plans, power_set, Plan,
     recycle_empty, recycle_info, RecycleInfo,
+    history_record, history_report, HistoryEvent, HistoryKind, UsageReport,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
@@ -50,7 +51,16 @@ fn clean(ids: Vec<String>) -> CleanOutcome {
     let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let batch = secs.to_string();
     let mode = Mode::Quarantine { dir: quarantine_dir(), batch: batch.clone() };
-    let reports = builtin_rules().iter().filter(|r| ids.contains(&r.id)).map(|r| clean_rule(r, &mode)).collect();
+    let reports: Vec<CleanReport> = builtin_rules().iter().filter(|r| ids.contains(&r.id)).map(|r| clean_rule(r, &mode)).collect();
+    history_record(
+        &data_dir(),
+        HistoryEvent {
+            when: secs,
+            kind: HistoryKind::Clean,
+            files: reports.iter().map(|r| r.files).sum(),
+            bytes: reports.iter().map(|r| r.bytes).sum(),
+        },
+    );
     CleanOutcome { batch, reports }
 }
 
@@ -84,10 +94,25 @@ fn purge(batch: Option<String>) -> Result<(), String> {
         Some(b) => vec![b],
         None => list_batches(&dir).into_iter().map(|b| b.batch).collect(),
     };
+    let sizes = list_batches(&dir);
+    let (mut files, mut bytes) = (0, 0);
+    let mut result = Ok(());
     for b in targets {
-        purge_batch(&dir, &b).map_err(|e| e.to_string())?;
+        match purge_batch(&dir, &b) {
+            Ok(()) => {
+                if let Some(i) = sizes.iter().find(|i| i.batch == b) {
+                    files += i.files;
+                    bytes += i.bytes;
+                }
+            }
+            Err(e) => {
+                result = Err(e.to_string());
+                break;
+            }
+        }
     }
-    Ok(())
+    history_record(&data_dir(), HistoryEvent { when: now_secs(), kind: HistoryKind::Purge, files, bytes });
+    result
 }
 
 #[tauri::command]
@@ -411,7 +436,22 @@ async fn recycle_state() -> Result<RecycleInfo, String> {
 
 #[tauri::command]
 async fn recycle_clear() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(recycle_empty).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(|| {
+        let before = recycle_info();
+        recycle_empty()?;
+        history_record(
+            &data_dir(),
+            HistoryEvent { when: now_secs(), kind: HistoryKind::Recycle, files: before.items, bytes: before.bytes },
+        );
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn usage_report() -> Result<UsageReport, String> {
+    tauri::async_runtime::spawn_blocking(|| history_report(&data_dir(), now_secs())).await.map_err(|e| e.to_string())
 }
 
 fn main() {
@@ -421,7 +461,7 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
