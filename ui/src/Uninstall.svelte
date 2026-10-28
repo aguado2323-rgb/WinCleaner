@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
   import { fmt } from './format.js';
 
@@ -124,6 +126,7 @@
         </div>
         <span class="sz num">{p.size_kb ? fmt(p.size_kb * 1024) : ''}</span>
         <button class="btn" onclick={() => ask(p)}>Desinstalar</button>
+        <Help text={H.uninstallButton.text} risk={H.uninstallButton.risk} label="Qué hace Desinstalar" />
       </li>
     {/each}
   </ul>
@@ -145,6 +148,7 @@
           <span class="box" aria-hidden="true"></span>
           <span>Crear un punto de restauración antes (recomendado)</span>
         </label>
+        <Help text={H.uninstallPoint.text} risk={H.uninstallPoint.risk} label="Qué es un punto de restauración" />
         {#if pointError}<p class="err">{pointError}</p>{/if}
         <div class="row">
           <button class="btn" onclick={close}>Cancelar</button>
@@ -174,6 +178,7 @@
                   <b>{l.path}</b>
                   <small>{l.kind === 'folder' ? 'Carpeta · va a la cuarentena' : 'Registro · se guarda copia .reg'}</small>
                 </span>
+                <Help text={l.kind === 'folder' ? H.leftoverFolder.text : H.leftoverRegistry.text} risk={l.kind === 'folder' ? 'reversible' : 'care'} label="Qué es este resto" />
               </label>
             </li>
           {/each}

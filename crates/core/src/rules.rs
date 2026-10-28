@@ -7,6 +7,8 @@ pub struct Rule {
     pub name: String,
     pub category: String,
     pub description: String,
+    /// Explicación para la persona: qué es, qué pasa si se limpia y si hay riesgo.
+    pub help: String,
     pub paths: Vec<String>,
     #[serde(default)]
     pub safe: bool,
@@ -60,6 +62,7 @@ mod tests {
         assert_eq!(ids.len(), rules.len(), "ids duplicados");
         for r in &rules {
             assert!(!r.paths.is_empty(), "{} sin rutas", r.id);
+            assert!(r.help.len() > 40, "{} sin explicación", r.id);
             for p in &r.paths {
                 // Toda ruta debe colgar de una variable de entorno: nada de rutas fijas ni raíces.
                 assert!(p.starts_with('%') && p.matches('%').count() == 2, "{}: {p}", r.id);

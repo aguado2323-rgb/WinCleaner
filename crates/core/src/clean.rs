@@ -224,6 +224,7 @@ mod tests {
             name: "t".into(),
             category: "t".into(),
             description: "t".into(),
+            help: String::new(),
             paths: vec![format!("%{var}%")],
             safe: true,
         }

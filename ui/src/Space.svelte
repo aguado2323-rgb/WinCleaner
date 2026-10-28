@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
   import { fmt } from './format.js';
   import { squarify } from './treemap.js';
@@ -91,7 +93,7 @@
 
 <p class="label">Espacio</p>
 <h1 class="h1">Qué ocupa tu disco.</h1>
-<p class="lede">Solo lectura: aquí no se borra nada. Haz clic en un bloque para entrar.</p>
+<p class="lede">Solo lectura: aquí no se borra nada. Haz clic en un bloque para entrar. <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label="Cómo leer el mapa" /></p>
 
 <div class="roots tabs">
   {#each roots as r (r.path)}
@@ -113,7 +115,7 @@
     <span><b>{fmt(report.bytes)}</b> en total</span>
     <span><b>{report.files.toLocaleString('es-ES')}</b> archivos</span>
     <span><b>{report.children.length}</b> elementos</span>
-    {#if report.skipped}<span class="warn"><b>{report.skipped}</b> sin acceso</span>{/if}
+    {#if report.skipped}<span class="warn"><b>{report.skipped}</b> sin acceso <Help text={H.spaceSkipped.text} risk={H.spaceSkipped.risk} label="Qué es sin acceso" /></span>{/if}
   {:else}
     <span>—</span>
   {/if}
@@ -175,6 +177,7 @@
             <span class="mini" aria-hidden="true"><i style="width:{(f.bytes / maxFile) * 100}%"></i></span>
             <span class="sz num">{fmt(f.bytes)}</span>
             <button class="link" onclick={() => reveal(f.path)}>Mostrar ↗</button>
+            <Help text={H.spaceLargest.text} risk={H.spaceLargest.risk} label="Qué hace Mostrar" />
           </div>
         </li>
       {/each}

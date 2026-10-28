@@ -7,6 +7,7 @@ id = "user-temp"
 name = "Temporales del usuario"
 category = "Sistema"
 description = "Archivos temporales de las aplicaciones del usuario."
+help = "Archivos temporales que los programas dejan en tu carpeta Temp mientras trabajan; casi siempre sobran. Si un programa abierto está usando alguno, se salta. Riesgo muy bajo: va a la cuarentena y puedes devolverlo."
 paths = ["%TEMP%"]
 safe = true
 
@@ -15,6 +16,7 @@ id = "windows-temp"
 name = "Temporales de Windows"
 category = "Sistema"
 description = "Carpeta Temp del sistema (puede requerir administrador)."
+help = "Lo mismo que los temporales del usuario, pero de la carpeta Temp de todo el sistema. Algunos archivos pueden estar en uso y se saltan; sin permisos de administrador puede que no se limpie todo. Riesgo muy bajo y reversible desde la cuarentena."
 paths = ["%WINDIR%\\Temp"]
 safe = true
 
@@ -23,6 +25,7 @@ id = "thumbnails"
 name = "Caché de miniaturas"
 category = "Sistema"
 description = "Miniaturas del Explorador; Windows las regenera."
+help = "Windows guarda una copia pequeña de tus fotos y vídeos para mostrar las vistas previas rápido. Si la borras, Windows la vuelve a crear sola; al abrir carpetas con imágenes tardará un poco más la primera vez. Sin riesgo para tus archivos."
 paths = ["%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer"]
 safe = true
 
@@ -31,6 +34,7 @@ id = "crash-dumps"
 name = "Volcados de error"
 category = "Sistema"
 description = "Informes y volcados de fallos de aplicaciones."
+help = "Informes que Windows y los programas guardan cuando algo se cierra por un error. Sirven para diagnosticar fallos, pero ocupan espacio y normalmente no los vas a mirar. Si estás investigando un problema reciente, déjalo sin marcar."
 paths = ["%LOCALAPPDATA%\\CrashDumps", "%LOCALAPPDATA%\\Microsoft\\Windows\\WER"]
 safe = true
 
@@ -39,6 +43,7 @@ id = "chrome-cache"
 name = "Chrome: caché"
 category = "Navegadores"
 description = "Caché de Google Chrome (no toca contraseñas ni cookies)."
+help = "Copia de páginas, imágenes y scripts que Chrome guarda para cargar webs más rápido. Al borrarla, las webs cargarán algo más lento la primera vez. No toca contraseñas, cookies, historial ni marcadores, así que no se cierran tus sesiones."
 paths = [
   "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data",
   "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Code Cache",
@@ -51,6 +56,7 @@ id = "edge-cache"
 name = "Edge: caché"
 category = "Navegadores"
 description = "Caché de Microsoft Edge (no toca contraseñas ni cookies)."
+help = "Copia de páginas e imágenes que Edge guarda para ir más rápido. Se vuelve a crear sola; las webs cargan un poco más lento la primera vez. No toca contraseñas, cookies ni historial."
 paths = [
   "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache\\Cache_Data",
   "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Code Cache",
@@ -63,6 +69,7 @@ id = "firefox-cache"
 name = "Firefox: caché"
 category = "Navegadores"
 description = "Caché de Mozilla Firefox."
+help = "Caché de Firefox. Está sin marcar porque Firefox guarda sus datos por perfil y conviene cerrarlo antes de limpiar. Si lo cierras primero, el riesgo es muy bajo; no toca contraseñas ni marcadores."
 paths = ["%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles"]
 safe = false
 
@@ -71,6 +78,7 @@ id = "brave-cache"
 name = "Brave: caché"
 category = "Navegadores"
 description = "Caché de Brave (no toca contraseñas ni cookies)."
+help = "Copia de páginas e imágenes que Brave guarda para ir más rápido. Se regenera sola. No toca contraseñas, cookies ni historial."
 paths = [
   "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Cache\\Cache_Data",
   "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Code Cache",
@@ -83,6 +91,7 @@ id = "opera-cache"
 name = "Opera: caché"
 category = "Navegadores"
 description = "Caché de Opera (no toca contraseñas ni cookies)."
+help = "Copia de páginas e imágenes que Opera guarda para ir más rápido. Se regenera sola. No toca contraseñas, cookies ni historial."
 paths = [
   "%APPDATA%\\Opera Software\\Opera Stable\\Cache\\Cache_Data",
   "%APPDATA%\\Opera Software\\Opera Stable\\Code Cache",
@@ -95,6 +104,7 @@ id = "vivaldi-cache"
 name = "Vivaldi: caché"
 category = "Navegadores"
 description = "Caché de Vivaldi (no toca contraseñas ni cookies)."
+help = "Copia de páginas e imágenes que Vivaldi guarda para ir más rápido. Se regenera sola. No toca contraseñas, cookies ni historial."
 paths = [
   "%LOCALAPPDATA%\\Vivaldi\\User Data\\Default\\Cache\\Cache_Data",
   "%LOCALAPPDATA%\\Vivaldi\\User Data\\Default\\Code Cache",
@@ -107,6 +117,7 @@ id = "inet-cache"
 name = "Archivos temporales de Internet"
 category = "Sistema"
 description = "Caché web heredada de Windows (INetCache)."
+help = "Caché web antigua de Windows, usada por Internet Explorer y algunos programas del sistema. Se vuelve a rellenar sola. Riesgo muy bajo."
 paths = ["%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache"]
 safe = true
 
@@ -115,6 +126,7 @@ id = "windows-update-cache"
 name = "Descargas de Windows Update"
 category = "Sistema"
 description = "Paquetes ya instalados; Windows los vuelve a descargar si hacen falta (requiere administrador)."
+help = "Paquetes de actualización que Windows ya descargó. Si hacen falta de nuevo, Windows los descarga otra vez. No lo marques si tienes una actualización a medias. Necesita permisos de administrador."
 paths = ["%WINDIR%\\SoftwareDistribution\\Download"]
 safe = true
 
@@ -123,6 +135,7 @@ id = "delivery-optimization"
 name = "Optimización de distribución"
 category = "Sistema"
 description = "Caché de actualizaciones compartidas entre equipos (requiere administrador)."
+help = "Windows comparte partes de las actualizaciones con otros equipos para descargarlas antes; esto es esa caché. Se vuelve a crear sola. Necesita permisos de administrador. Riesgo muy bajo."
 paths = ["%WINDIR%\\ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization\\Cache"]
 safe = true
 
@@ -131,6 +144,7 @@ id = "prefetch"
 name = "Prefetch"
 category = "Sistema"
 description = "Acelera el arranque de apps; al borrarlo la primera apertura de cada una será algo más lenta (requiere administrador)."
+help = "Windows apunta qué programas usas para abrirlos más rápido. Si lo borras, la primera apertura de cada programa será algo más lenta hasta que se reconstruya. Casi no libera espacio, por eso viene sin marcar. Necesita administrador."
 paths = ["%WINDIR%\\Prefetch"]
 safe = false
 
@@ -139,6 +153,7 @@ id = "directx-shader-cache"
 name = "Caché de sombreadores de DirectX"
 category = "Juegos y gráficos"
 description = "Se regenera sola; los juegos pueden tardar un poco más la primera vez."
+help = "Los juegos guardan aquí piezas gráficas ya preparadas. Se regeneran solas; el primer arranque de cada juego puede tardar un poco más o dar tirones al compilar de nuevo. Sin riesgo para tus partidas guardadas."
 paths = ["%LOCALAPPDATA%\\D3DSCache"]
 safe = true
 
@@ -147,6 +162,7 @@ id = "nvidia-cache"
 name = "Caché de NVIDIA"
 category = "Juegos y gráficos"
 description = "Cachés de sombreadores de DirectX y OpenGL de NVIDIA."
+help = "Caché de piezas gráficas que el controlador de NVIDIA guarda para que los juegos carguen antes. Se regenera sola; el primer arranque de cada juego puede ir algo más lento. No toca tus partidas ni los controladores."
 paths = ["%LOCALAPPDATA%\\NVIDIA\\DXCache", "%LOCALAPPDATA%\\NVIDIA\\GLCache"]
 safe = true
 
@@ -155,6 +171,7 @@ id = "discord-cache"
 name = "Discord: caché"
 category = "Aplicaciones"
 description = "Imágenes y datos temporales de Discord; no cierra tu sesión."
+help = "Imágenes y datos temporales que Discord guarda. Al abrirlo tardará un poco más en cargar las imágenes. No cierra tu sesión ni borra mensajes (esos están en los servidores de Discord)."
 paths = [
   "%APPDATA%\\discord\\Cache\\Cache_Data",
   "%APPDATA%\\discord\\Code Cache",
@@ -167,6 +184,7 @@ id = "vscode-cache"
 name = "VS Code: caché"
 category = "Aplicaciones"
 description = "Cachés de Visual Studio Code; no toca ajustes ni extensiones."
+help = "Datos temporales que Visual Studio Code guarda para arrancar rápido. Se recrean solos. No toca tus ajustes, extensiones ni proyectos. Cierra VS Code antes de limpiar."
 paths = [
   "%APPDATA%\\Code\\Cache",
   "%APPDATA%\\Code\\CachedData",
@@ -180,6 +198,7 @@ id = "npm-cache"
 name = "npm: caché"
 category = "Desarrollo"
 description = "Paquetes descargados por npm; se vuelven a bajar al instalar."
+help = "Paquetes que npm descargó antes. Si lo borras, npm los vuelve a bajar cuando haga falta (necesitarás internet). Está sin marcar porque solo interesa a quien programa; no afecta a tus proyectos."
 paths = ["%LOCALAPPDATA%\\npm-cache"]
 safe = false
 
@@ -188,6 +207,7 @@ id = "pip-cache"
 name = "pip: caché"
 category = "Desarrollo"
 description = "Paquetes descargados por pip."
+help = "Paquetes de Python que pip descargó antes. Si lo borras, se vuelven a bajar al instalar. Sin marcar porque solo interesa a quien programa; no afecta a tus entornos instalados."
 paths = ["%LOCALAPPDATA%\\pip\\Cache"]
 safe = false
 
@@ -196,5 +216,6 @@ id = "nuget-cache"
 name = "NuGet: caché HTTP"
 category = "Desarrollo"
 description = "Caché de consultas de NuGet (.NET)."
+help = "Caché de consultas de NuGet, el gestor de paquetes de .NET. Se rehace sola, pero la próxima compilación puede tardar un poco más. Solo interesa a quien programa."
 paths = ["%LOCALAPPDATA%\\NuGet\\v3-cache"]
 safe = false

@@ -402,6 +402,7 @@ mod imp {
                         name: String::new(),
                         category: String::new(),
                         description: String::new(),
+                        help: String::new(),
                         paths: vec![item.path.clone()],
                         safe: false,
                     };
