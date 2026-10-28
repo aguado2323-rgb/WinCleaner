@@ -386,6 +386,9 @@ async fn updates_scan() -> Result<Vec<Update>, String> {
 #[tauri::command]
 async fn updates_apply(id: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || update_apply(&id)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn power_list() -> Result<Vec<Plan>, String> {
     tauri::async_runtime::spawn_blocking(power_plans).await.map_err(|e| e.to_string())?
 }
