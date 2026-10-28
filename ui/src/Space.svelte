@@ -1,13 +1,11 @@
 <script>
   import { invoke } from '@tauri-apps/api/core';
-  import Icon from './Icon.svelte';
   import { fmt } from './format.js';
   import { squarify } from './treemap.js';
 
   let { notify } = $props();
 
-  const palette = ['var(--blue)', 'var(--green)', 'var(--violet)', 'var(--yellow)', 'var(--red)'];
-  const MAX_TILES = 12;
+  const MAX_TILES = 14;
 
   let roots = $state([]);
   let current = $state('');
@@ -42,7 +40,7 @@
       const bytes = rest.reduce((a, c) => a + c.bytes, 0);
       shown.push({ name: `${rest.length} elementos más`, path: '', is_dir: false, bytes, files: 0, value: bytes, other: true });
     }
-    return squarify(shown).map((t, i) => ({ ...t, color: t.other ? 'var(--ash)' : palette[i % palette.length], i }));
+    return squarify(shown).map((t, i) => ({ ...t, i }));
   });
 
   async function go(path) {
@@ -75,6 +73,13 @@
   }
 
   const reveal = (path) => invoke('reveal', { path }).catch((e) => notify('No se pudo abrir: ' + e));
+  // Cada bloque se tiñe con una tinta distinta; el mayor, con el acento.
+  const tone = (t) =>
+    t.other
+      ? 'var(--paper-2)'
+      : t.i === 0
+        ? 'color-mix(in srgb, var(--accent) 30%, var(--paper))'
+        : `color-mix(in srgb, var(--ink) ${[7, 12, 17][t.i % 3]}%, var(--paper))`;
   const pct = (b) => (report?.bytes ? Math.round((b / report.bytes) * 100) : 0);
   const maxChild = $derived(report?.children[0]?.bytes || 1);
   const maxFile = $derived(report?.largest[0]?.bytes || 1);
@@ -84,54 +89,47 @@
   init();
 </script>
 
-<header>
-  <h1>Espacio</h1>
-  <p>Descubre qué ocupa tu disco. Es solo lectura: aquí no se borra nada.</p>
-</header>
+<p class="label">Espacio</p>
+<h1 class="h1">Qué ocupa tu disco.</h1>
+<p class="lede">Solo lectura: aquí no se borra nada. Haz clic en un bloque para entrar.</p>
 
-<div class="roots">
+<div class="roots tabs">
   {#each roots as r (r.path)}
-    <button class:active={activeRoot === r.path} onclick={() => go(r.path)}>{r.label}</button>
+    <button class:on={activeRoot === r.path} onclick={() => go(r.path)}>{r.label}</button>
   {/each}
 </div>
 
 {#if current}
-  <nav class="crumbs" aria-label="Ruta">
+  <nav class="crumbs num" aria-label="Ruta">
     {#each crumbs as c, i (c.path)}
-      {#if i}<Icon name="chevron" size={13} />{/if}
+      {#if i}<span>/</span>{/if}
       <button class:last={i === crumbs.length - 1} onclick={() => go(c.path)}>{c.name}</button>
     {/each}
   </nav>
 {/if}
 
-<section class="stats">
+<section class="stats num">
   {#if report}
-    <div><b>{fmt(report.bytes)}</b><small>en total</small></div>
-    <div><b>{report.files.toLocaleString('es-ES')}</b><small>archivos</small></div>
-    <div><b>{report.children.length}</b><small>elementos</small></div>
-    {#if report.skipped}<div class="warn"><b>{report.skipped}</b><small>sin acceso</small></div>{/if}
+    <span><b>{fmt(report.bytes)}</b> en total</span>
+    <span><b>{report.files.toLocaleString('es-ES')}</b> archivos</span>
+    <span><b>{report.children.length}</b> elementos</span>
+    {#if report.skipped}<span class="warn"><b>{report.skipped}</b> sin acceso</span>{/if}
   {:else}
-    <div><b class="sk">0.00 GB</b><small>en total</small></div>
-    <div><b class="sk">00000</b><small>archivos</small></div>
+    <span>—</span>
   {/if}
 </section>
 
 <section class="map" aria-label="Mapa de espacio">
   {#if loading}
-    <div class="scanning">
-      <span class="spinner"></span>
-      <b>Analizando…</b>
-      <small>En discos grandes puede tardar un poco</small>
-    </div>
+    <div class="scanning"><b class="num dots">···</b><span>Analizando. En discos grandes puede tardar.</span></div>
   {:else if report && !tiles.length}
-    <div class="scanning"><b>Carpeta vacía</b><small>No hay nada que ocupe espacio aquí.</small></div>
+    <div class="scanning"><span>Carpeta vacía.</span></div>
   {/if}
   {#each tiles as t (t.path || t.name)}
     <button
       class="tile"
       class:dim={hovered && hovered !== t.path}
-      class:other={t.other}
-      style="left:{t.x}%;top:{t.y}%;width:{t.w}%;height:{t.h}%;--c:{t.color};animation-delay:{t.i * 25}ms"
+      style="left:{t.x}%;top:{t.y}%;width:{t.w}%;height:{t.h}%;--bg:{tone(t)};animation-delay:{t.i * 20}ms"
       disabled={t.other}
       onmouseenter={() => (hovered = t.path)}
       onmouseleave={() => (hovered = null)}
@@ -140,11 +138,8 @@
     >
       <span class="in">
         {#if t.w > 9 && t.h > 14}
-          <span class="nm">
-            <Icon name={t.is_dir ? 'folder' : 'file'} size={14} />
-            <span>{t.name}</span>
-          </span>
-          <span class="sz">{fmt(t.bytes)}{#if t.w > 14 && t.h > 24}{' · ' + pct(t.bytes) + '%'}{/if}</span>
+          <span class="nm">{t.name}{t.is_dir ? '/' : ''}</span>
+          <span class="sz num">{fmt(t.bytes)}{#if t.w > 14 && t.h > 24}{' · ' + pct(t.bytes) + '%'}{/if}</span>
         {/if}
       </span>
     </button>
@@ -152,7 +147,7 @@
 </section>
 
 {#if report}
-  <div class="tabs" role="tablist">
+  <div class="tabs sub" role="tablist">
     <button role="tab" aria-selected={tab === 'folders'} class:on={tab === 'folders'} onclick={() => (tab = 'folders')}>Contenido</button>
     <button role="tab" aria-selected={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>Archivos más grandes</button>
   </div>
@@ -160,30 +155,26 @@
   <ul>
     {#if tab === 'folders'}
       {#each report.children.slice(0, 40) as c, i (c.path)}
-        <li style="animation-delay:{i * 18}ms" class:hot={hovered === c.path}>
+        <li style="animation-delay:{i * 14}ms" class:hot={hovered === c.path}>
           <button class="row" onclick={() => (c.is_dir ? go(c.path) : reveal(c.path))}>
-            <span class="ico"><Icon name={c.is_dir ? 'folder' : 'file'} size={17} /></span>
-            <span class="txt">
-              <b>{c.name}</b>
-              <span class="bar"><i style="width:{Math.max(c.bytes ? 2 : 0, (c.bytes / maxChild) * 100)}%"></i></span>
-            </span>
-            <span class="num">{fmt(c.bytes)}<small>{pct(c.bytes)}%</small></span>
-            {#if c.is_dir}<span class="go"><Icon name="chevron" size={15} /></span>{/if}
+            <span class="nm">{c.name}{c.is_dir ? '/' : ''}</span>
+            <span class="mini" aria-hidden="true"><i style="width:{Math.max(c.bytes ? 2 : 0, (c.bytes / maxChild) * 100)}%"></i></span>
+            <span class="pc num">{pct(c.bytes)}%</span>
+            <span class="sz num">{fmt(c.bytes)}</span>
           </button>
         </li>
       {/each}
     {:else}
       {#each report.largest as f, i (f.path)}
-        <li style="animation-delay:{i * 18}ms">
+        <li style="animation-delay:{i * 14}ms">
           <div class="row">
-            <span class="ico"><Icon name="file" size={17} /></span>
-            <span class="txt">
-              <b>{baseName(f.path)}</b>
-              <small class="path">{dirName(f.path)}</small>
-              <span class="bar"><i style="width:{(f.bytes / maxFile) * 100}%"></i></span>
+            <span class="nm">
+              {baseName(f.path)}
+              <small>{dirName(f.path)}</small>
             </span>
-            <span class="num">{fmt(f.bytes)}</span>
-            <button class="icon" title="Mostrar en el Explorador" aria-label="Mostrar en el Explorador" onclick={() => reveal(f.path)}><Icon name="external" size={15} /></button>
+            <span class="mini" aria-hidden="true"><i style="width:{(f.bytes / maxFile) * 100}%"></i></span>
+            <span class="sz num">{fmt(f.bytes)}</span>
+            <button class="link" onclick={() => reveal(f.path)}>Mostrar ↗</button>
           </div>
         </li>
       {/each}
@@ -192,66 +183,39 @@
 {/if}
 
 <style>
-  header h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.3px; }
-  header p { margin: 6px 0 0; color: var(--mute); font-size: 14px; }
-  .roots { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 14px; }
-  .roots button { border: 1px solid var(--hairline-strong); background: none; border-radius: 99px; padding: 7px 16px; color: var(--body); cursor: pointer; font-size: 13px; transition: all 0.15s; }
-  .roots button:hover { background: var(--hairline); }
-  .roots button.active { background: var(--cta-bg); color: var(--cta-fg); border-color: transparent; font-weight: 600; }
+  .h1 { margin-top: 10px; }
+  .roots { margin: 26px 0 14px; }
+  .crumbs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; margin-bottom: 16px; font-size: 12px; color: var(--ink-3); }
+  .crumbs button { border: 0; background: none; padding: 1px 2px; color: var(--ink-2); }
+  .crumbs button:hover { color: var(--accent); }
+  .crumbs button.last { color: var(--ink); font-weight: 600; }
+  .stats { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 14px; font-size: 12px; color: var(--ink-3); }
+  .stats b { color: var(--ink); font-weight: 600; font-size: 15px; margin-right: 3px; }
+  .stats .warn b { color: var(--accent); }
 
-  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: 18px; color: var(--ash); font-size: 13px; }
-  .crumbs button { border: 0; background: none; color: var(--mute); cursor: pointer; padding: 3px 6px; border-radius: 6px; }
-  .crumbs button:hover { background: var(--hairline); color: var(--ink); }
-  .crumbs button.last { color: var(--ink); font-weight: 500; }
+  .map { position: relative; height: 330px; background: var(--paper-2); }
+  .scanning { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; color: var(--ink-2); }
+  .dots { font-size: 40px; color: var(--ink-3); animation: blink 1s steps(3) infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .tile { position: absolute; padding: 1.5px; border: 0; background: none; text-align: left; animation: fade 0.3s both; transition: opacity 0.15s; }
+  .tile.dim { opacity: 0.5; }
+  .tile:disabled { cursor: default; }
+  .in { display: flex; flex-direction: column; justify-content: space-between; width: 100%; height: 100%; padding: 8px 10px; background: var(--bg); overflow: hidden; }
+  .tile:hover:not(:disabled) .in { box-shadow: inset 0 0 0 2px var(--ink); }
+  .tile:focus-visible .in { box-shadow: inset 0 0 0 2px var(--accent); }
+  .tile .nm { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .sz { width: auto; text-align: left; font-size: 11.5px; color: var(--ink-2); }
 
-  .stats { display: flex; gap: 34px; margin-bottom: 16px; }
-  .stats div { display: grid; gap: 1px; }
-  .stats b { font-size: 22px; font-weight: 600; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
-  .stats small { color: var(--mute); font-size: 12px; }
-  .stats .warn b { color: var(--yellow); }
-  .sk { color: transparent; background: var(--hairline); border-radius: 6px; animation: pulse 1.2s infinite; }
-  @keyframes pulse { 50% { opacity: 0.45; } }
-
-  .map { position: relative; height: 340px; border-radius: 18px; overflow: hidden; border: 1px solid var(--hairline); background: var(--surface); }
-  .scanning { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; color: var(--mute); }
-  .scanning b { color: var(--ink); font-weight: 500; }
-  .scanning small { font-size: 12.5px; }
-  .spinner { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--hairline-strong); border-top-color: var(--blue); animation: spin 0.8s linear infinite; margin-bottom: 8px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .tile { position: absolute; padding: 3px; border: 0; background: none; text-align: left; cursor: pointer; animation: tileIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; transition: opacity 0.2s; }
-  @keyframes tileIn { from { opacity: 0; transform: scale(0.92); } }
-  .tile.dim { opacity: 0.55; }
-  .tile.other { cursor: default; }
-  .in { position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 100%; height: 100%; padding: 9px 11px; border-radius: 12px; overflow: hidden; color: var(--ink);
-    background: linear-gradient(160deg, color-mix(in srgb, var(--c) 30%, var(--surface)), color-mix(in srgb, var(--c) 12%, var(--surface)));
-    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; }
-  .tile:hover:not(:disabled) .in { transform: translateY(-2px); border-color: var(--c); box-shadow: 0 10px 28px color-mix(in srgb, var(--c) 28%, transparent); }
-  .tile:focus-visible .in { outline: 2px solid var(--c); }
-  .nm { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; min-width: 0; }
-  .nm span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .nm :global(svg) { flex: none; color: var(--c); }
-  .sz { font-size: 12px; color: var(--body); font-variant-numeric: tabular-nums; }
-
-  .tabs { display: flex; gap: 4px; margin: 26px 0 10px; padding: 4px; width: fit-content; border-radius: 99px; background: var(--hairline); }
-  .tabs button { border: 0; background: none; padding: 7px 16px; border-radius: 99px; color: var(--mute); cursor: pointer; font-size: 13px; transition: all 0.15s; }
-  .tabs button.on { background: var(--elevated); color: var(--ink); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25); }
-
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  li { animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
-  .row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 11px 14px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); text-align: left; transition: border-color 0.15s, background 0.15s; }
-  button.row { cursor: pointer; }
-  .row:hover, li.hot .row { border-color: var(--hairline-strong); background: var(--elevated); }
-  .ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: var(--blue); background: var(--glow); flex: none; }
-  .txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
-  .txt b { font-weight: 500; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .path { color: var(--ash); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bar { height: 3px; border-radius: 3px; background: var(--hairline); margin-top: 5px; overflow: hidden; }
-  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--green)); border-radius: 3px; }
-  .num { display: grid; justify-items: end; min-width: 70px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--body); }
-  .num small { color: var(--ash); font-size: 11px; }
-  .go { color: var(--ash); display: grid; }
-  .icon { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; background: none; color: var(--mute); cursor: pointer; }
-  .icon:hover { background: var(--hairline); color: var(--ink); }
+  .sub { margin: 28px 0 4px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { animation: line 0.22s both; border-bottom: 1px solid var(--rule); }
+  .row { display: flex; align-items: center; gap: 18px; width: 100%; padding: 11px 2px; border: 0; background: none; text-align: left; }
+  button.row:hover, li.hot .row { background: var(--paper-2); }
+  .row .nm { flex: 1; min-width: 0; font-size: 14px; display: grid; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .nm small { color: var(--ink-3); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+  .mini { flex: none; width: 90px; height: 3px; background: var(--paper-2); }
+  .mini i { display: block; height: 100%; background: var(--ink); }
+  li:first-child .mini i { background: var(--accent); }
+  .pc { width: 38px; text-align: right; font-size: 12px; color: var(--ink-3); }
+  .sz { width: 78px; text-align: right; font-size: 13px; }
 </style>

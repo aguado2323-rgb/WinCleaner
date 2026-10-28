@@ -1,6 +1,5 @@
 <script>
   import { invoke } from '@tauri-apps/api/core';
-  import Icon from './Icon.svelte';
 
   let { notify } = $props();
 
@@ -9,16 +8,10 @@
   let filter = $state('all');
   let busy = $state({});
 
-  const tint = ['var(--blue)', 'var(--green)', 'var(--violet)', 'var(--yellow)'];
-  const sourceTone = { Usuario: 'var(--blue)', Sistema: 'var(--yellow)', 'Carpeta Inicio': 'var(--green)' };
-
   let active = $derived(items.filter((i) => i.enabled).length);
   let shown = $derived(
     items.filter((i) => filter === 'all' || (filter === 'on' ? i.enabled : !i.enabled))
   );
-
-  const letter = (n) => (n.replace(/[^\p{L}\p{N}]/gu, '')[0] ?? '?').toUpperCase();
-  const colorOf = (n) => tint[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % tint.length];
 
   async function load() {
     try {
@@ -49,13 +42,13 @@
   load();
 </script>
 
-<header>
-  <h1>Arranque</h1>
-  <p>Programas que se inician con Windows. Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras.</p>
-</header>
+<p class="label">Arranque</p>
+<h1 class="h1">Lo que arranca con Windows.</h1>
+<p class="lede">Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras.</p>
 
 <section class="summary">
-  <div class="big"><b>{active}</b><span>de {items.length} se inician con Windows</span></div>
+  <span class="big num">{active}<small>/{items.length}</small></span>
+  <span class="cap">se inician con Windows</span>
   <div class="tabs" role="tablist">
     <button role="tab" aria-selected={filter === 'all'} class:on={filter === 'all'} onclick={() => (filter = 'all')}>Todos</button>
     <button role="tab" aria-selected={filter === 'on'} class:on={filter === 'on'} onclick={() => (filter = 'on')}>Activos</button>
@@ -64,72 +57,52 @@
 </section>
 
 {#if loading}
-  <ul>
-    {#each [0, 1, 2, 3] as n (n)}<li class="skeleton" style="animation-delay:{n * 90}ms"></li>{/each}
-  </ul>
+  <p class="empty num">···</p>
 {:else if !shown.length}
-  <div class="empty">
-    <span><Icon name="power" size={30} /></span>
-    <b>{items.length ? 'Nada en esta lista' : 'No hay programas de arranque'}</b>
-    <small>{items.length ? 'Prueba con otro filtro.' : 'Windows no ha encontrado entradas que mostrar.'}</small>
-  </div>
+  <p class="empty">{items.length ? 'Nada en esta lista.' : 'Windows no ha encontrado programas de arranque.'}</p>
 {:else}
   <ul>
     {#each shown as item, i (item.id)}
-      <li style="--c:{colorOf(item.name)}; animation-delay:{i * 30}ms" class:off={!item.enabled}>
-        <label>
-          <span class="avatar">{letter(item.name)}</span>
-          <span class="txt">
-            <span class="top">
-              <b>{item.name}</b>
-              <i class="tag" style="--t:{sourceTone[item.source] ?? 'var(--mute)'}">{item.source}</i>
-            </span>
-            <small title={item.command}>{item.command || 'Sin comando'}</small>
+      <li style="animation-delay:{i * 24}ms" class:off={!item.enabled}>
+        <div class="txt">
+          <span class="top">
+            <b>{item.name}</b>
+            <span class="tag label">{item.source}</span>
           </span>
-          <input type="checkbox" checked={item.enabled} disabled={busy[item.id]} onchange={() => toggle(item)} aria-label="Iniciar {item.name} con Windows" />
-          <span class="sw"></span>
-        </label>
+          <small title={item.command}>{item.command || 'Sin comando'}</small>
+        </div>
+        <div class="seg" role="group" aria-label="Iniciar {item.name} con Windows">
+          <button class:on={item.enabled} disabled={busy[item.id]} aria-pressed={item.enabled} onclick={() => !item.enabled && toggle(item)}>Sí</button>
+          <button class:on={!item.enabled} disabled={busy[item.id]} aria-pressed={!item.enabled} onclick={() => item.enabled && toggle(item)}>No</button>
+        </div>
       </li>
     {/each}
   </ul>
 {/if}
 
 <style>
-  header h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.3px; }
-  header p { margin: 6px 0 0; color: var(--mute); font-size: 14px; line-height: 1.55; max-width: 580px; }
+  .h1 { margin-top: 10px; }
+  .summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px; margin: 28px 0 8px; padding-bottom: 0; }
+  .big { font-size: 72px; font-weight: 500; letter-spacing: -0.06em; line-height: 1; }
+  .big small { font-size: 28px; color: var(--ink-3); letter-spacing: -0.03em; }
+  .cap { flex: 1; color: var(--ink-2); }
+  .summary .tabs { flex-basis: 100%; margin-top: 18px; }
 
-  .summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 26px 0 16px; padding: 18px 22px; border: 1px solid var(--hairline); border-radius: 18px; background: linear-gradient(160deg, var(--elevated), var(--surface)); }
-  .big { display: flex; align-items: baseline; gap: 12px; }
-  .big b { font-size: 38px; font-weight: 600; letter-spacing: -1px; font-variant-numeric: tabular-nums; background: linear-gradient(135deg, var(--blue), var(--green)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .big span { color: var(--mute); font-size: 13.5px; }
-  .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 99px; background: var(--hairline); }
-  .tabs button { border: 0; background: none; padding: 7px 14px; border-radius: 99px; color: var(--mute); cursor: pointer; font-size: 13px; transition: all 0.15s; }
-  .tabs button.on { background: var(--elevated); color: var(--ink); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 18px; padding: 13px 2px; border-bottom: 1px solid var(--rule); animation: line 0.22s both; }
+  li.off .txt { opacity: 0.5; }
+  .txt { flex: 1; min-width: 0; display: grid; gap: 2px; transition: opacity 0.15s; }
+  .top { display: flex; align-items: baseline; gap: 10px; }
+  .top b { font-weight: 600; font-size: 14.5px; }
+  .tag { font-size: 10px; }
+  small { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  li { animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
-  label { display: flex; align-items: center; gap: 14px; padding: 13px 18px 13px 14px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.2s; }
-  label:hover { border-color: var(--hairline-strong); background: var(--elevated); }
-  li.off label { opacity: 0.6; }
-  .avatar { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; font-weight: 600; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
-  .txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
-  .top { display: flex; align-items: center; gap: 9px; min-width: 0; }
-  .top b { font-weight: 500; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tag { flex: none; font-style: normal; font-size: 10.5px; letter-spacing: 0.4px; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; color: var(--t); background: color-mix(in srgb, var(--t) 14%, transparent); }
-  small { color: var(--ash); font-size: 12px; font-family: 'Cascadia Mono', Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  input { position: absolute; opacity: 0; pointer-events: none; }
-  .sw { flex: none; width: 38px; height: 22px; border-radius: 99px; background: var(--hairline-strong); position: relative; transition: background 0.2s; }
-  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1); }
-  input:checked + .sw { background: var(--green); }
-  input:checked + .sw::after { transform: translateX(16px); }
-  input:focus-visible + .sw { outline: 2px solid var(--green); outline-offset: 2px; }
-  input:disabled + .sw { opacity: 0.5; }
-
-  .skeleton { height: 66px; border-radius: 14px; background: var(--surface); border: 1px solid var(--hairline); animation: pulse 1.2s infinite; }
-  @keyframes pulse { 50% { opacity: 0.45; } }
-  .empty { display: grid; justify-items: center; gap: 6px; padding: 60px 0; color: var(--mute); text-align: center; }
-  .empty span { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); margin-bottom: 8px; }
-  .empty b { color: var(--ink); font-weight: 500; }
+  .seg { display: flex; flex: none; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden; }
+  .seg button { border: 0; background: none; padding: 6px 13px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); transition: background 0.1s; }
+  .seg button + button { border-left: 1px solid var(--ink); }
+  .seg button:hover:not(.on):not(:disabled) { background: var(--paper-2); color: var(--ink); }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+  .seg button.on:first-child { background: var(--accent); color: var(--on-accent); }
+  .seg button:disabled { opacity: 0.5; }
+  .empty { padding: 50px 0; color: var(--ink-2); font-size: 15px; }
 </style>
