@@ -5,12 +5,14 @@
   import Space from './Space.svelte';
   import Startup from './Startup.svelte';
   import Restore from './Restore.svelte';
+  import Debloat from './Debloat.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
     ['quarantine', 'Cuarentena'],
     ['space', 'Espacio'],
     ['startup', 'Arranque'],
+    ['debloat', 'Aplicaciones'],
     ['restore', 'Restauración'],
   ];
 
@@ -67,6 +69,8 @@
           <Space {notify} />
         {:else if view === 'startup'}
           <Startup {notify} />
+        {:else if view === 'debloat'}
+          <Debloat {notify} />
         {:else if view === 'restore'}
           <Restore {notify} />
         {:else}

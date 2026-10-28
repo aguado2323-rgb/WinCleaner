@@ -1,0 +1,296 @@
+# Catálogo de aplicaciones preinstaladas que se pueden quitar sin dañar Windows.
+#
+# Reglas para añadir entradas:
+#  - `package` es el nombre exacto del paquete (Get-AppxPackage), solo letras, cifras y puntos.
+#  - Nunca incluir componentes de los que dependa Windows: Microsoft Store, Edge/WebView2,
+#    Shell Experience Host, menú Inicio, Configuración, Seguridad de Windows, .NET/VCLibs...
+#  - risk = "safe": casi nadie la echa de menos. risk = "cautious": hay quien la usa; se explica.
+#  - Todas se pueden volver a instalar desde Microsoft Store.
+
+[[app]]
+id = "bing-news"
+package = "Microsoft.BingNews"
+name = "Noticias (Microsoft Start)"
+category = "Microsoft"
+what = "Lector de noticias de Microsoft."
+impact = "Solo desaparece la app. El widget de Windows usa su propio componente."
+risk = "safe"
+
+[[app]]
+id = "bing-weather"
+package = "Microsoft.BingWeather"
+name = "El Tiempo"
+category = "Microsoft"
+what = "App de previsión meteorológica."
+impact = "Pierdes la app; el tiempo de la barra de tareas sigue funcionando."
+risk = "safe"
+
+[[app]]
+id = "bing-search"
+package = "Microsoft.BingSearch"
+name = "Bing Search"
+category = "Microsoft"
+what = "Integra resultados de Bing en el menú Inicio."
+impact = "La búsqueda de Windows sigue funcionando para tus archivos y aplicaciones."
+risk = "safe"
+
+[[app]]
+id = "get-help"
+package = "Microsoft.GetHelp"
+name = "Obtener ayuda"
+category = "Microsoft"
+what = "Acceso a soporte de Microsoft."
+impact = "Ninguno en el uso diario."
+risk = "safe"
+
+[[app]]
+id = "get-started"
+package = "Microsoft.Getstarted"
+name = "Sugerencias"
+category = "Microsoft"
+what = "Consejos de bienvenida para usar Windows."
+impact = "Ninguno."
+risk = "safe"
+
+[[app]]
+id = "office-hub"
+package = "Microsoft.MicrosoftOfficeHub"
+name = "Microsoft 365 (Office)"
+category = "Microsoft"
+what = "Acceso directo que promociona y abre Microsoft 365."
+impact = "No borra Word ni Excel instalados; solo quita este lanzador."
+risk = "safe"
+
+[[app]]
+id = "solitaire"
+package = "Microsoft.MicrosoftSolitaireCollection"
+name = "Solitaire Collection"
+category = "Juegos"
+what = "Colección de juegos de cartas con anuncios."
+impact = "Pierdes el juego y su progreso local."
+risk = "safe"
+
+[[app]]
+id = "people"
+package = "Microsoft.People"
+name = "Contactos"
+category = "Microsoft"
+what = "Libreta de contactos de Microsoft."
+impact = "Mail y Calendario pueden dejar de mostrar contactos si los usas."
+risk = "cautious"
+
+[[app]]
+id = "power-automate"
+package = "Microsoft.PowerAutomateDesktop"
+name = "Power Automate"
+category = "Microsoft"
+what = "Automatización de tareas repetitivas."
+impact = "Solo afecta si tenías flujos creados."
+risk = "safe"
+
+[[app]]
+id = "todo"
+package = "Microsoft.Todos"
+name = "Microsoft To Do"
+category = "Microsoft"
+what = "Lista de tareas sincronizada con tu cuenta."
+impact = "Tus tareas siguen en tu cuenta de Microsoft; solo se va la app."
+risk = "cautious"
+
+[[app]]
+id = "feedback-hub"
+package = "Microsoft.WindowsFeedbackHub"
+name = "Centro de opiniones"
+category = "Microsoft"
+what = "Envío de comentarios a Microsoft."
+impact = "Ninguno."
+risk = "safe"
+
+[[app]]
+id = "maps"
+package = "Microsoft.WindowsMaps"
+name = "Mapas"
+category = "Microsoft"
+what = "App de mapas de Windows."
+impact = "Ninguno si usas mapas en el navegador."
+risk = "safe"
+
+[[app]]
+id = "phone-link"
+package = "Microsoft.YourPhone"
+name = "Vincular con el móvil"
+category = "Microsoft"
+what = "Conecta el móvil con el PC (mensajes, fotos, notificaciones)."
+impact = "Si lo usas, perderás la conexión con el teléfono."
+risk = "cautious"
+
+[[app]]
+id = "groove-music"
+package = "Microsoft.ZuneMusic"
+name = "Reproductor multimedia (Groove)"
+category = "Microsoft"
+what = "Reproductor de música antiguo."
+impact = "Los archivos de audio se abrirán con otro reproductor."
+risk = "cautious"
+
+[[app]]
+id = "movies-tv"
+package = "Microsoft.ZuneVideo"
+name = "Películas y TV"
+category = "Microsoft"
+what = "Reproductor de vídeo y tienda de películas."
+impact = "Los vídeos se abrirán con otro reproductor."
+risk = "cautious"
+
+[[app]]
+id = "mail-calendar"
+package = "microsoft.windowscommunicationsapps"
+name = "Correo y Calendario (antiguo)"
+category = "Microsoft"
+what = "Cliente de correo y calendario clásico de Windows."
+impact = "Si lo usas para tu correo, perderás esa app; los mensajes siguen en el servidor."
+risk = "cautious"
+
+[[app]]
+id = "skype"
+package = "Microsoft.SkypeApp"
+name = "Skype"
+category = "Microsoft"
+what = "Mensajería y videollamadas."
+impact = "Pierdes la app; tu cuenta no se borra."
+risk = "safe"
+
+[[app]]
+id = "mixed-reality"
+package = "Microsoft.MixedReality.Portal"
+name = "Portal de realidad mixta"
+category = "Microsoft"
+what = "Gafas de realidad virtual de Windows."
+impact = "Solo hace falta con gafas compatibles."
+risk = "safe"
+
+[[app]]
+id = "3d-viewer"
+package = "Microsoft.Microsoft3DViewer"
+name = "Visor 3D"
+category = "Microsoft"
+what = "Abre modelos 3D."
+impact = "Ninguno si no trabajas con modelos 3D."
+risk = "safe"
+
+[[app]]
+id = "onenote"
+package = "Microsoft.Office.OneNote"
+name = "OneNote (app de Windows)"
+category = "Microsoft"
+what = "Cuaderno de notas de Microsoft."
+impact = "Tus cuadernos siguen en OneDrive; solo quitas esta app."
+risk = "cautious"
+
+[[app]]
+id = "clipchamp"
+package = "Clipchamp.Clipchamp"
+name = "Clipchamp"
+category = "Microsoft"
+what = "Editor de vídeo sencillo."
+impact = "Pierdes el editor; tus vídeos no se tocan."
+risk = "safe"
+
+[[app]]
+id = "xbox-ui"
+package = "Microsoft.XboxGameCallableUI"
+name = "Interfaz de Xbox (complemento)"
+category = "Juegos"
+what = "Ventanas auxiliares para juegos de Xbox."
+impact = "Algunos juegos de la Tienda pueden fallar al iniciar sesión con Xbox."
+risk = "cautious"
+
+[[app]]
+id = "xbox-app"
+package = "Microsoft.GamingApp"
+name = "Xbox"
+category = "Juegos"
+what = "App de Xbox para PC y Game Pass."
+impact = "Si juegas con Game Pass perderás el lanzador."
+risk = "cautious"
+
+[[app]]
+id = "sound-recorder"
+package = "Microsoft.WindowsSoundRecorder"
+name = "Grabadora de sonidos"
+category = "Microsoft"
+what = "Graba audio desde el micrófono."
+impact = "Ninguno si no la usas."
+risk = "safe"
+
+[[app]]
+id = "sticky-notes"
+package = "Microsoft.MicrosoftStickyNotes"
+name = "Notas rápidas"
+category = "Microsoft"
+what = "Notas adhesivas en el escritorio."
+impact = "Si las usas, tus notas están en tu cuenta de Microsoft y vuelven al reinstalar."
+risk = "cautious"
+
+[[app]]
+id = "quick-assist"
+package = "MicrosoftCorporationII.QuickAssist"
+name = "Asistencia rápida"
+category = "Microsoft"
+what = "Control remoto para que alguien te ayude."
+impact = "No podrás recibir ni dar ayuda remota con esta app."
+risk = "cautious"
+
+[[app]]
+id = "spotify"
+package = "SpotifyAB.SpotifyMusic"
+name = "Spotify (preinstalado)"
+category = "Terceros"
+what = "App de música instalada por el fabricante."
+impact = "Pierdes la app; tu cuenta y listas no se tocan."
+risk = "safe"
+
+[[app]]
+id = "netflix"
+package = "4DF9E0F8.Netflix"
+name = "Netflix (preinstalado)"
+category = "Terceros"
+what = "App de streaming instalada por el fabricante."
+impact = "Pierdes la app; puedes ver Netflix en el navegador."
+risk = "safe"
+
+[[app]]
+id = "prime-video"
+package = "AmazonVideo.PrimeVideo"
+name = "Prime Video (preinstalado)"
+category = "Terceros"
+what = "App de streaming de Amazon."
+impact = "Pierdes la app; sigue en el navegador."
+risk = "safe"
+
+[[app]]
+id = "disney-plus"
+package = "Disney.37853FC22B2CE"
+name = "Disney+ (preinstalado)"
+category = "Terceros"
+what = "App de streaming de Disney."
+impact = "Pierdes la app; sigue en el navegador."
+risk = "safe"
+
+[[app]]
+id = "tiktok"
+package = "BytedancePte.Ltd.TikTok"
+name = "TikTok (preinstalado)"
+category = "Terceros"
+what = "Red social de vídeos instalada por el fabricante."
+impact = "Ninguno."
+risk = "safe"
+
+[[app]]
+id = "instagram"
+package = "Facebook.InstagramBeta"
+name = "Instagram (preinstalado)"
+category = "Terceros"
+what = "Red social instalada por el fabricante."
+impact = "Ninguno; sigue en el navegador."
+risk = "safe"
