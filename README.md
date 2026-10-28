@@ -1,175 +1,180 @@
 <p align="center">
-  <img src="assets/icon-256.png" width="112" alt="Icono de WinCleaner">
+  <img src="assets/icon-256.png" width="112" alt="WinCleaner icon">
 </p>
 
 <h1 align="center">WinCleaner</h1>
 
+<p align="center"><b>English</b> · <a href="README.es.md">Español</a></p>
+
 <p align="center">
-  <b>Limpia, ordena y pone a punto Windows. Sin anuncios, sin telemetría y sin instalador.</b><br>
-  Lo que hacen CCleaner y Revo Uninstaller, en una sola app ligera, bonita y de código abierto.
+  A Windows cleaner and uninstaller with no ads and no telemetry. It runs as a single portable .exe.<br>
+  It covers most of what people use CCleaner and Revo Uninstaller for, and the code is open under the MIT license.
 </p>
 
 <p align="center">
-  <a href="../../releases/latest"><img alt="Descargar" src="https://img.shields.io/github/v/release/aguado2323-rgb/wincleaner?label=descargar&color=ff4d00"></a>
+  <a href="../../releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/aguado2323-rgb/wincleaner?label=download&color=ff4d00"></a>
   <a href="../../actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/aguado2323-rgb/wincleaner/ci.yml?branch=main&label=CI"></a>
-  <img alt="Windows 10 y 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-151512">
-  <a href="LICENSE"><img alt="Licencia MIT" src="https://img.shields.io/badge/licencia-MIT-151512"></a>
+  <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-151512">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-151512"></a>
 </p>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-oscuro.png">
-    <img src="docs/images/hero-claro.png" alt="WinCleaner: pantalla de Limpieza con el monitor del equipo al lado">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/en/hero-dark.png">
+    <img src="docs/images/en/hero-light.png" alt="WinCleaner's Clean screen with the system monitor next to it">
   </picture>
 </p>
 
-## Por qué WinCleaner
+## How it keeps your PC safe
 
-- **Nada se borra a la primera.** Todo lo que limpias va a una **cuarentena** y se puede devolver a su sitio con un clic. Solo se borra de verdad cuando tú vacías la cuarentena.
-- **Siempre ves antes lo que va a pasar.** Primero analiza, luego te enseña cuánto ocupa cada cosa y tú decides qué marcar.
-- **Cada opción explica su riesgo.** Pasa el ratón por el **?** de cualquier línea: te dice qué es, qué pasa si lo quitas y si es *sin riesgo*, *reversible* o *con cuidado*.
-- **Todo cambio en Windows tiene «Deshacer».** Ajustes, servicios, arranque y aplicaciones se pueden revertir, y la app ofrece crear un **punto de restauración** antes de tocar nada importante.
-- **Sin anuncios, sin cuentas y sin telemetría.** No envía datos a ningún sitio. El historial se queda en tu equipo y solo guarda cifras y fechas, nunca nombres de archivos.
-- **Portable y ligero.** Un único `.exe`, sin instalador ni servicios en segundo plano. Usa el WebView2 que ya trae Windows.
-- **Claro u oscuro, en español o en inglés.** Sigue el tema del sistema y puedes cambiarlo desde la barra lateral.
+When you clean, files go to a quarantine folder first. You can put any cleanup back where it was, and files are only deleted for good when you empty the quarantine yourself.
 
-## Qué puede hacer
+The cleaning screens scan first and show the size of each item, and you pick what goes. Each option has a **?** next to it. Hover it to read what the item is, what happens if you remove it, and how risky that is.
 
-### Limpieza
+Changes to Windows itself (tweaks, services, startup entries, removed apps) can be undone from the same screen. Before the bigger ones, the app offers to create a Windows restore point.
 
-Temporales de usuario y de Windows, miniaturas, volcados de error, descargas de Windows Update, Prefetch, cachés de **Chrome, Edge, Firefox, Brave, Opera y Vivaldi**, cachés de apps (Discord, Slack, Spotify, Steam, Epic, Office, Microsoft Store...), de gráficos (DirectX, NVIDIA) y de desarrollo (npm, pip, NuGet, cargo, Gradle, VS Code). También vacía la **Papelera de reciclaje**.
+WinCleaner has no account and sends nothing over the network. Its usage history stays on your PC and holds only sizes and dates, never file names. There is no installer and nothing runs in the background. The window uses the WebView2 runtime that Windows already includes.
 
-Las reglas son declarativas ([`windows.toml`](crates/core/rules/windows.toml)): las seguras vienen marcadas y las delicadas, desmarcadas y explicadas.
+The interface comes in light and dark themes and in English and Spanish. Some texts are still Spanish only in the English version: the names and descriptions of cleaning rules, tweaks, services and bloatware, and the **?** help notes.
 
-<img src="docs/images/limpieza.png" alt="Limpieza" width="100%">
+## Features
 
-### Cuarentena
+### Clean
 
-Cada limpieza queda guardada como un lote con su fecha, número de archivos y tamaño. Puedes **restaurarlo** entero o **borrarlo** definitivamente. Después de limpiar aparece un aviso con «Deshacer».
+Cleans user and Windows temp files, thumbnails, crash dumps, Windows Update downloads and Prefetch. It also clears the caches of Chrome, Edge, Firefox, Brave, Opera and Vivaldi, of apps like Discord, Slack, Spotify, Steam, Epic Games, Office and the Microsoft Store, of DirectX and NVIDIA shaders, and of developer tools (npm, pip, NuGet, cargo, Gradle, VS Code). It can empty the Recycle Bin too.
 
-<img src="docs/images/cuarentena.png" alt="Cuarentena" width="100%">
+The rules live in a plain TOML file, [`windows.toml`](crates/core/rules/windows.toml). Safe rules start ticked. The rest start unticked, with a note on what they cost you.
 
-### Espacio en disco
+<img src="docs/images/en/clean.png" alt="Clean" width="100%">
 
-Mapa de bloques (treemap) de tu carpeta o de cualquier disco: haz clic para entrar en una carpeta y mira los **archivos más grandes**. Lo que marques va a la cuarentena; las carpetas del sistema están protegidas y no se pueden seleccionar.
+### Quarantine
 
-<img src="docs/images/espacio.png" alt="Espacio en disco" width="100%">
+Each cleanup is saved as a batch with its date, file count and size. You can restore a batch or delete it permanently. Right after a cleanup, a notice with an Undo button appears.
 
-### Duplicados y archivos grandes o antiguos
+<img src="docs/images/en/quarantine.png" alt="Quarantine" width="100%">
 
-Busca archivos idénticos **por contenido**, no por nombre, en Descargas, Documentos, Escritorio, Imágenes y Vídeos. Eliges qué copia se queda y el resto va a la cuarentena. La pestaña *Grandes y antiguos* encuentra lo que pesa mucho y no tocas desde hace meses.
+### Disk space
 
-<img src="docs/images/duplicados.png" alt="Duplicados" width="100%">
+A treemap of your user folder or of a whole drive. Click a block to open that folder, or switch to the list of the largest files. Anything you tick goes to quarantine. System folders are protected and can't be ticked.
 
-### Arranque
+<img src="docs/images/en/space.png" alt="Disk space" width="100%">
 
-Lo que se inicia con Windows (registro del usuario, del sistema y carpeta Inicio). Desactivar no desinstala nada y se puede volver a activar cuando quieras.
+### Duplicates and large old files
 
-<img src="docs/images/arranque.png" alt="Arranque" width="100%">
+Finds identical files by comparing their content, so renamed copies count too. It searches Downloads, Documents, Desktop, Pictures, Videos and Music. For each group you choose the copy to keep, and the others go to quarantine. The second tab lists big files you haven't touched in months.
 
-### Desinstalar sin dejar rastro
+<img src="docs/images/en/duplicates.png" alt="Duplicates" width="100%">
 
-Lista de programas con icono, fecha de instalación, **último uso** y tamaño, con buscador y orden por columnas. Usa el desinstalador oficial de cada programa y después busca **restos**: tú revisas qué quitar, las carpetas van a la cuarentena y las claves del registro se guardan antes en una copia `.reg` que puedes restaurar.
+### Startup
 
-<img src="docs/images/desinstalar.png" alt="Desinstalar" width="100%">
+Lists what starts with Windows from the user and system registry keys and from the Startup folder. Turning an entry off leaves the program installed, and you can turn it back on at any time.
 
-### Actualizaciones
+<img src="docs/images/en/startup.png" alt="Startup" width="100%">
 
-Busca versiones nuevas de tus programas con **winget**, el gestor oficial de Windows, y las instala por ti.
+### Uninstall
 
-<img src="docs/images/actualizaciones.png" alt="Actualizaciones" width="100%">
+Lists your programs with their icon, install date, last use and size. You can search and sort by any column. WinCleaner runs each program's own uninstaller and then looks for leftovers. You review what it found before anything is removed: folders go to quarantine, and registry keys are exported to a `.reg` backup first so you can restore them.
 
-### Aplicaciones preinstaladas (debloat)
+<img src="docs/images/en/uninstall.png" alt="Uninstall" width="100%">
 
-Quita las apps que vienen con Windows o con tu equipo y que no pediste (Noticias, El Tiempo, Bing, Sugerencias...). Solo aparecen las que tienes instaladas, cada una explica qué pasa si la quitas, y todas se pueden volver a instalar desde Microsoft Store. Nunca toca componentes de los que depende Windows.
+### Updates
 
-<img src="docs/images/preinstaladas.png" alt="Aplicaciones preinstaladas" width="100%">
+Checks your programs for new versions with winget, the Windows package manager, and installs the ones you pick.
 
-### Ajustes de Windows
+<img src="docs/images/en/updates.png" alt="Updates" width="100%">
 
-Cambios opcionales de **privacidad, rendimiento e interfaz** (historial de actividad, identificador de publicidad, telemetría al mínimo, Copilot, búsqueda web en Inicio, transparencias, extensiones de archivo...). Solo tocan el registro y cada uno tiene su «Deshacer».
+### Bloatware
 
-<img src="docs/images/ajustes.png" alt="Ajustes de Windows" width="100%">
+Removes apps that came with Windows or with your PC, such as News, Weather, Bing Search or Tips. The list shows only apps you have installed, and each one says what you lose by removing it. All of them can be reinstalled from the Microsoft Store. The catalog leaves out anything Windows depends on.
 
-### Servicios
+<img src="docs/images/en/bloatware.png" alt="Bloatware" width="100%">
 
-Pasa a **Manual** servicios que casi nadie necesita que arranquen solos (telemetría, SysMain, mapas, Xbox...). No se borran ni se detienen: Windows los inicia si hacen falta, y «Deshacer» devuelve el inicio original.
+### Windows tweaks
 
-<img src="docs/images/servicios.png" alt="Servicios" width="100%">
+Optional privacy, performance and interface changes: activity history, the advertising ID, minimum telemetry, Copilot, web results in Start search, transparency effects, file extensions and more. They only touch the registry, and each one has an Undo button.
 
-### Energía
+<img src="docs/images/en/tweaks.png" alt="Windows tweaks" width="100%">
 
-Cambia el plan de energía de Windows en un clic y añade el plan **Máximo rendimiento** si tu equipo no lo muestra.
+### Services
 
-<img src="docs/images/energia.png" alt="Energía" width="100%">
+Sets services that few people need at boot to Manual. The list includes telemetry, SysMain, Downloaded Maps and the Xbox services. A Manual service is still there and Windows starts it when something needs it. Undo restores the original startup type.
 
-### Programación
+<img src="docs/images/en/services.png" alt="Services" width="100%">
 
-Una limpieza segura cada día, semana o mes a la hora que elijas, sin abrir ventana y con aviso al terminar. Puede limpiar o **solo avisar**, y vaciar sola los lotes antiguos de la cuarentena. Usa el Programador de tareas de Windows: nada se queda residente en memoria.
+### Power
 
-<img src="docs/images/programacion.png" alt="Programación" width="100%">
+Switches the Windows power plan in one click. If your PC doesn't show the Ultimate Performance plan, it can add it.
 
-### Informe
+<img src="docs/images/en/power.png" alt="Power" width="100%">
 
-Cuánto llevas liberado, una gráfica de los últimos 30 días y los últimos movimientos.
+### Schedule
 
-<img src="docs/images/informe.png" alt="Informe" width="100%">
+Runs a safe cleanup every day, week or month at the time you choose, without opening the window, and shows a notification when it's done. It can clean or only tell you how much space you could free, and it can empty old quarantine batches as well. It uses the Windows Task Scheduler, so nothing stays in memory between runs.
 
-### Puntos de restauración
+<img src="docs/images/en/schedule.png" alt="Schedule" width="100%">
 
-Crea un punto de restauración cuando quieras (y la app lo ofrece antes de desinstalar, quitar aplicaciones o cambiar ajustes). Si algo va mal, abre *Restaurar sistema* de Windows desde aquí. Si hace falta, reinicia WinCleaner como administrador.
+### Report
 
-<img src="docs/images/restauracion.png" alt="Puntos de restauración" width="100%">
+How much you've freed so far, a chart of the last 30 days and a list of recent cleanups.
 
-### Monitor del equipo
+<img src="docs/images/en/report.png" alt="Report" width="100%">
 
-Con la ventana ancha aparece un panel lateral con **CPU, RAM, discos, red en vivo, GPU NVIDIA, temperaturas, los programas que más gastan, salud de los discos** y las especificaciones del equipo. Con la ventana estrecha se oculta y deja de consultar nada.
+### Restore points
 
-### Ayuda en cada opción
+Create a restore point whenever you like. The app also offers one before uninstalling programs, removing apps or applying tweaks. If something goes wrong, this screen opens Windows System Restore. When an action needs administrator rights, WinCleaner can restart itself as administrator.
 
-<img src="docs/images/ayuda.png" alt="Ayuda con el riesgo de cada opción" width="100%">
+<img src="docs/images/en/restore.png" alt="Restore points" width="100%">
 
-## Descargar y usar
+### System monitor
 
-1. Descarga `WinCleaner-vX.Y.Z-portable.exe` de la [última versión](../../releases/latest).
-2. Ejecútalo. No se instala: puedes guardarlo donde quieras, incluso en un USB.
-3. Algunas funciones (temporales de Windows, servicios, ajustes del sistema, puntos de restauración) necesitan permisos de administrador. La app te avisa y puede reiniciarse como administrador.
+On a wide window, a side panel shows CPU, RAM, disks, live network speed, NVIDIA GPU usage, temperatures, the programs using the most CPU and memory, disk health and your PC's specs. On a narrow window the panel hides and stops polling.
 
-Cada versión incluye su **SHA256** para comprobar la descarga:
+### Help on every option
+
+<img src="docs/images/en/help.png" alt="Help popup with the risk level of an option" width="100%">
+
+## Download
+
+1. Download `WinCleaner-vX.Y.Z-portable.exe` from the [latest release](../../releases/latest).
+2. Run it. There's nothing to install, so you can keep it in any folder or on a USB stick.
+3. Some features need administrator rights: the Windows temp folder, services, system tweaks and restore points. The app tells you when, and can restart itself as administrator.
+
+Each release lists the file's SHA256 so you can check your download:
 
 ```powershell
 (Get-FileHash .\WinCleaner-v0.1.1-portable.exe).Hash
 ```
 
-> El ejecutable aún no está firmado, así que Windows SmartScreen puede mostrar «Windows protegió su PC». Pulsa *Más información → Ejecutar de todas formas*. Más detalles en [docs/RELEASING.md](docs/RELEASING.md).
+The .exe isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Click *More info*, then *Run anyway*. See [docs/RELEASING.md](docs/RELEASING.md) for the signing plan.
 
-**Requisitos:** Windows 10 u 11 de 64 bits con WebView2 (viene de serie en Windows 11 y en Windows 10 actualizado).
+You need 64-bit Windows 10 or 11 with WebView2, which ships with Windows 11 and with up-to-date Windows 10.
 
-## Lo que no hace (a propósito)
+## What it leaves out on purpose
 
-- **No limpia el registro a lo bruto.** Da muy poco beneficio y puede romper cosas. Solo se tocan claves concretas: las de los ajustes reversibles y los restos de un programa que acabas de desinstalar, con copia previa.
-- **No «optimiza» la RAM.** Vaciar la memoria a la fuerza hace que el equipo vaya más lento después.
-- **No es un antivirus** ni se queda residente vigilando nada.
+WinCleaner has no general registry cleaner. Those give almost no speed-up and can break things. It only edits specific keys: the ones behind each reversible tweak, and the leftovers of a program you just uninstalled, after backing them up.
 
-## Para desarrolladores
+It has no RAM "optimizer" either. Forcing memory to empty makes Windows slower afterwards, because it has to load everything again.
 
-**Stack:** [Tauri 2](https://tauri.app) + Rust (núcleo en [`crates/core`](crates/core), sin dependencias de la interfaz) + Svelte 5 ([`ui`](ui)).
-Los catálogos son archivos TOML en [`crates/core/rules`](crates/core/rules): limpieza, aplicaciones preinstaladas, ajustes y servicios. Toda regla nueva necesita su texto de ayuda.
+It isn't an antivirus, and it doesn't stay running in the background.
+
+## For developers
+
+WinCleaner is built with [Tauri 2](https://tauri.app). The Rust core in [`crates/core`](crates/core) has no UI code, and the interface is Svelte 5 in [`ui`](ui). The catalogs for cleaning rules, bloatware, tweaks and services are TOML files in [`crates/core/rules`](crates/core/rules). Every new entry needs a help text.
 
 ```bash
 npm install --prefix ui
-cargo test -p wincleaner-core     # funciona en cualquier sistema
-cargo tauri dev                   # requiere Windows + WebView2 (cargo install tauri-cli)
+cargo test -p wincleaner-core     # runs on any OS
+cargo tauri dev                   # needs Windows + WebView2 (cargo install tauri-cli)
 ```
 
-El CI compila en Windows y deja el ejecutable portable como artefacto (`WinCleaner-portable`) en cada cambio de `main`. Para publicar una versión con su SHA256 y, opcionalmente, firmarla: [docs/RELEASING.md](docs/RELEASING.md). Plan y fases del proyecto: [docs/PLAN.md](docs/PLAN.md).
+CI builds on Windows and uploads the portable .exe as the `WinCleaner-portable` artifact for every change to `main`. [docs/RELEASING.md](docs/RELEASING.md) explains how to publish a release with its SHA256 and how to sign it. The project plan is in [docs/PLAN.md](docs/PLAN.md) (Spanish).
 
-Para traducir: los textos de la interfaz están en español en el código (`t('texto')`) y la traducción inglesa vive en [`ui/src/en.js`](ui/src/en.js).
+UI strings are written in Spanish in the code as `t('texto')`, and the English translations are in [`ui/src/en.js`](ui/src/en.js).
 
-`.claude/settings.json` activa las suites architecture, product-discovery, quality-assurance e implementation de [levnikolaevich/claude-code-skills](https://github.com/levnikolaevich/claude-code-skills).
+`.claude/settings.json` turns on the architecture, product-discovery, quality-assurance and implementation suites from [levnikolaevich/claude-code-skills](https://github.com/levnikolaevich/claude-code-skills).
 
-## Licencia
+## License
 
-[MIT](LICENSE). Úsalo, cámbialo y compártelo.
+[MIT](LICENSE).
 
-<sub>Las capturas usan datos de ejemplo.</sub>
+<sub>Screenshots use sample data.</sub>
