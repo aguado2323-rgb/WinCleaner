@@ -42,7 +42,6 @@ pub struct Live {
 /// Guarda el estado entre muestras: la CPU se mide entre dos lecturas seguidas.
 pub struct Monitor {
     sys: System,
-    comps: Components,
 }
 
 impl Default for Monitor {
@@ -56,7 +55,7 @@ impl Monitor {
         let mut sys = System::new();
         sys.refresh_cpu_usage();
         sys.refresh_memory();
-        Monitor { sys, comps: Components::new_with_refreshed_list() }
+        Monitor { sys }
     }
 
     pub fn specs(&mut self) -> Specs {
@@ -76,14 +75,13 @@ impl Monitor {
     pub fn sample(&mut self) -> Live {
         self.sys.refresh_cpu_usage();
         self.sys.refresh_memory();
-        self.comps.refresh(true);
         let disks = Disks::new_with_refreshed_list();
         Live {
             cpu: self.sys.global_cpu_usage(),
             ram_used: self.sys.used_memory(),
             ram_total: self.sys.total_memory(),
             disks: disk_list(&disks),
-            temps: temp_list(&self.comps),
+            temps: read_temps(),
             uptime: System::uptime(),
         }
     }
@@ -100,6 +98,12 @@ fn disk_list(disks: &Disks) -> Vec<DiskUse> {
         out.push(DiskUse { mount, name: d.name().to_string_lossy().into_owned(), total: d.total_space(), free: d.available_space() });
     }
     out
+}
+
+/// Los sensores se leen con una consulta nueva cada vez (en Windows usa WMI, ligado al hilo que la abre),
+/// y un fallo del sensor nunca debe tirar la aplicación: sin lectura, lista vacía.
+fn read_temps() -> Vec<Temp> {
+    std::panic::catch_unwind(|| temp_list(&Components::new_with_refreshed_list())).unwrap_or_default()
 }
 
 fn temp_list(comps: &Components) -> Vec<Temp> {
