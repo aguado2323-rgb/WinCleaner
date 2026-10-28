@@ -1,0 +1,488 @@
+# Ajustes de Windows (privacidad, rendimiento e interfaz), inspirados en el catálogo público de
+# winutil pero reescritos aquí: solo valores de registro, cada uno reversible.
+#
+# Reglas para añadir ajustes (las comprueban los tests):
+#  - Solo valores DWORD o texto bajo HKCU\Software, HKCU\Control Panel, HKCU\System\GameConfigStore,
+#    HKLM\SOFTWARE o HKLM\SYSTEM\CurrentControlSet\Control\FileSystem.
+#  - Nada de Run/RunOnce, Services, Winlogon, Defender, Lsa, criptografía ni seguridad.
+#  - Sin scripts ni comandos: no se ejecuta nada, solo se escribe y se restaura el registro.
+#  - risk = "safe": sin efectos secundarios relevantes. risk = "care": cambia algo que se nota o
+#    que alguien podría usar; se explica en `help`.
+#  - restart = "none" | "explorer" (cerrar sesión o reiniciar el Explorador) | "reboot".
+
+# ---------------------------------------------------------------- Privacidad
+
+[[tweak]]
+id = "activity-history"
+name = "Historial de actividad"
+category = "Privacidad"
+what = "Evita que Windows guarde y envíe a Microsoft lo que haces en el equipo."
+help = "Windows apunta qué aplicaciones y archivos usas para mostrarlos en la «línea de tiempo» y sincronizarlos con tu cuenta. Con este ajuste deja de publicarlos y subirlos. El historial del portapapeles sigue funcionando. Necesita administrador."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\System'
+name = "PublishUserActivities"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\System'
+name = "UploadUserActivities"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "advertising-id"
+name = "Identificador de publicidad"
+category = "Privacidad"
+what = "Impide que las apps usen un identificador tuyo para personalizar anuncios."
+help = "Windows asigna a tu usuario un identificador que las aplicaciones pueden usar para mostrarte anuncios personalizados. Al desactivarlo siguen saliendo anuncios, pero menos adaptados a ti. No afecta al funcionamiento de ninguna aplicación."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'
+name = "Enabled"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "tailored-experiences"
+name = "Consejos personalizados con tus datos de diagnóstico"
+category = "Privacidad"
+what = "Windows deja de usar tus datos de diagnóstico para sugerirte cosas."
+help = "Microsoft usa los datos de diagnóstico para mostrarte consejos, anuncios y recomendaciones «a tu medida». Desactivarlo no cambia el funcionamiento de Windows; solo recibirás sugerencias más genéricas."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Privacy'
+name = "TailoredExperiencesWithDiagnosticDataEnabled"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "telemetry"
+name = "Telemetría al mínimo"
+category = "Privacidad"
+what = "Reduce los datos de uso que Windows envía a Microsoft."
+help = "Pide a Windows que envíe solo los datos de diagnóstico imprescindibles. En Windows Home y Pro el mínimo real sigue siendo «básico» (Windows ignora el valor 0 y usa 1), así que reduce pero no elimina el envío. No afecta a las actualizaciones ni a la seguridad. Necesita administrador."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+name = "AllowTelemetry"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "location"
+name = "Ubicación del equipo"
+category = "Privacidad"
+what = "Desactiva el acceso a la ubicación para todo el equipo."
+help = "Ninguna aplicación podrá saber dónde estás. Si usas mapas, el tiempo o «Encontrar mi dispositivo», dejarán de saber tu posición hasta que lo vuelvas a activar. Pensado para equipos de sobremesa. Necesita administrador."
+risk = "care"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location'
+name = "Value"
+kind = "string"
+value = "Deny"
+
+[[tweak]]
+id = "delivery-optimization"
+name = "Optimización de distribución (sin compartir actualizaciones)"
+category = "Privacidad"
+what = "Windows deja de usar tu conexión para enviar actualizaciones a otros equipos."
+help = "Por defecto Windows puede descargar partes de las actualizaciones de otros equipos y subir las suyas a otros. Con este ajuste solo descarga de Microsoft. Las actualizaciones siguen llegando igual. Ahorra ancho de banda de subida. Necesita administrador."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+name = "DODownloadMode"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "bing-search"
+name = "Búsqueda web en el menú Inicio"
+category = "Privacidad"
+what = "El menú Inicio busca solo en tu equipo, sin resultados de Bing."
+help = "Cada letra que escribes en el menú Inicio se envía a Bing para mostrar sugerencias web. Al desactivarlo la búsqueda es más rápida y solo encuentra tus programas y archivos. Puedes seguir buscando en la web desde el navegador."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Search'
+name = "BingSearchEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Policies\Microsoft\Windows\Explorer'
+name = "DisableSearchBoxSuggestions"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "consumer-features"
+name = "Apps promocionadas de Microsoft"
+category = "Privacidad"
+what = "Evita que Windows instale apps patrocinadas por su cuenta."
+help = "Windows puede instalar solo aplicaciones promocionadas (juegos, redes sociales) en tu equipo o tras una actualización. Con este ajuste deja de hacerlo. Tiene efecto completo en Windows Enterprise y Education; en Home y Pro Microsoft puede ignorarlo parcialmente. Necesita administrador."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+name = "DisableWindowsConsumerFeatures"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "store-suggestions"
+name = "Sugerencias y reinstalación de apps preinstaladas"
+category = "Privacidad"
+what = "Quita los anuncios del menú Inicio y evita que vuelvan las apps que desinstalaste."
+help = "Desactiva las sugerencias de aplicaciones en Inicio, Configuración y pantalla de bloqueo, y la instalación automática de apps preinstaladas del fabricante. Complementa a «Preinstaladas»: así lo que quitas no vuelve."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SilentInstalledAppsEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SystemPaneSuggestionsEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-338388Enabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-338389Enabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-353694Enabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "SubscribedContent-353696Enabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "OemPreInstalledAppsEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+name = "PreInstalledAppsEnabled"
+kind = "dword"
+value = "0"
+
+# ---------------------------------------------------------------- Rendimiento
+
+[[tweak]]
+id = "background-apps"
+name = "Apps de la Tienda en segundo plano"
+category = "Rendimiento"
+what = "Las apps de la Tienda no se ejecutan solas cuando no las usas."
+help = "Muchas apps (correo, noticias, tiempo) siguen funcionando en segundo plano consumiendo memoria, batería y datos. Al desactivarlo solo se actualizan al abrirlas. Contrapartida: no recibirás notificaciones de esas apps hasta que las abras."
+risk = "care"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications'
+name = "GlobalUserDisabled"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "game-dvr"
+name = "Grabación de juegos en segundo plano (Game DVR)"
+category = "Rendimiento"
+what = "Desactiva la grabación automática de partidas que consume recursos."
+help = "La Barra de juegos puede grabar en segundo plano los últimos minutos de tus partidas. Eso gasta CPU, GPU y disco. Al desactivarlo ganas algo de rendimiento en juegos. Seguirás pudiendo grabar a mano con otras herramientas (OBS, etc.)."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'System\GameConfigStore'
+name = "GameDVR_Enabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\GameDVR'
+name = "AppCaptureEnabled"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "transparency"
+name = "Efectos de transparencia"
+category = "Rendimiento"
+what = "Quita el efecto cristal de la barra de tareas y las ventanas."
+help = "La transparencia usa algo de GPU y memoria. Desactivarla no cambia el funcionamiento, solo el aspecto: los fondos pasan a ser opacos. Útil en equipos modestos o portátiles para ahorrar batería."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+name = "EnableTransparency"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "window-animations"
+name = "Animaciones al minimizar y maximizar"
+category = "Rendimiento"
+what = "Las ventanas se minimizan y maximizan al instante."
+help = "Quita la animación al minimizar y maximizar ventanas. Sensación de mayor rapidez y algo menos de trabajo para la GPU. Se aplica al volver a iniciar sesión."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Control Panel\Desktop\WindowMetrics'
+name = "MinAnimate"
+kind = "string"
+value = "0"
+
+[[tweak]]
+id = "startup-delay"
+name = "Retraso de las apps de inicio"
+category = "Rendimiento"
+what = "Los programas de arranque empiezan sin la espera artificial de Windows."
+help = "Windows espera unos segundos tras iniciar sesión antes de abrir tus programas de arranque. Con este ajuste empiezan de inmediato. Si tienes muchos programas de arranque, el escritorio puede notarse más ocupado al principio; combínalo con «Arranque»."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize'
+name = "StartupDelayInMSec"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "edge-background"
+name = "Edge: sin segundo plano ni extras"
+category = "Rendimiento"
+what = "Edge no se queda abierto en memoria y desactiva barra lateral y recomendaciones."
+help = "Evita que Edge arranque en segundo plano y consuma memoria al iniciar Windows y que muestre su barra lateral, recomendaciones y asistente de compras. Edge seguirá funcionando; puede aparecer el aviso «administrado por tu organización» en su menú, es normal con estas políticas. Necesita administrador."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Edge'
+name = "StartupBoostEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Edge'
+name = "BackgroundModeEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Edge'
+name = "HubsSidebarEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Edge'
+name = "ShowRecommendationsEnabled"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Edge'
+name = "EdgeShoppingAssistantEnabled"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "mouse-acceleration"
+name = "Aceleración del ratón"
+category = "Rendimiento"
+what = "El puntero se mueve proporcional a tu mano, sin aceleración."
+help = "Con la aceleración, el cursor va más lejos si mueves el ratón rápido. Desactivarla da un control más predecible, sobre todo en juegos y diseño. Al principio puede sentirse más lento. Se aplica al volver a iniciar sesión."
+risk = "care"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Control Panel\Mouse'
+name = "MouseSpeed"
+kind = "string"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Control Panel\Mouse'
+name = "MouseThreshold1"
+kind = "string"
+value = "0"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Control Panel\Mouse'
+name = "MouseThreshold2"
+kind = "string"
+value = "0"
+
+# ---------------------------------------------------------------- Interfaz
+
+[[tweak]]
+id = "file-extensions"
+name = "Mostrar extensiones de archivo"
+category = "Interfaz"
+what = "Verás .pdf, .exe, .jpg… al final de los nombres."
+help = "Windows oculta por defecto la extensión de los archivos conocidos. Verlas te ayuda a detectar engaños típicos como «factura.pdf.exe». Es solo visual."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "HideFileExt"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "hidden-files"
+name = "Mostrar archivos ocultos"
+category = "Interfaz"
+what = "El Explorador enseña las carpetas y archivos marcados como ocultos."
+help = "Muestra elementos como AppData que Windows oculta para no tocarlos por error. Los archivos del sistema protegidos siguen ocultos. Ver más no cambia nada, pero ten cuidado de no borrar cosas que no conozcas."
+risk = "care"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "Hidden"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "end-task"
+name = "«Finalizar tarea» con clic derecho en la barra"
+category = "Interfaz"
+what = "Cierra programas colgados desde la barra de tareas, sin abrir el Administrador."
+help = "Añade «Finalizar tarea» al menú del botón derecho de un programa en la barra de tareas. Útil cuando algo se cuelga. Solo está disponible en versiones recientes de Windows 11."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'
+name = "TaskbarEndTask"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "taskbar-search"
+name = "Ocultar el botón de búsqueda de la barra"
+category = "Interfaz"
+what = "Quita la lupa o el cuadro de búsqueda de la barra de tareas."
+help = "Libera espacio en la barra. La búsqueda sigue disponible pulsando la tecla Windows y escribiendo."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Search'
+name = "SearchboxTaskbarMode"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "task-view"
+name = "Ocultar el botón de vista de tareas"
+category = "Interfaz"
+what = "Quita el botón de escritorios virtuales de la barra de tareas."
+help = "Solo oculta el botón. La vista de tareas sigue accesible con Windows + Tab."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "ShowTaskViewButton"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "widgets"
+name = "Desactivar Widgets (noticias y tiempo)"
+category = "Interfaz"
+what = "Quita el panel de Widgets de la barra de tareas y detiene sus procesos."
+help = "El panel de Widgets consume memoria y muestra noticias y anuncios. Con este ajuste desaparece. Necesita administrador y cerrar sesión para aplicarse del todo."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Dsh'
+name = "AllowNewsAndInterests"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "taskbar-left"
+name = "Barra de tareas alineada a la izquierda"
+category = "Interfaz"
+what = "Los iconos de la barra empiezan a la izquierda, como en Windows 10."
+help = "Cambia la alineación de los iconos de la barra de tareas. Es solo estético y reversible."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "TaskbarAl"
+kind = "dword"
+value = "0"
+
+[[tweak]]
+id = "sticky-keys"
+name = "Aviso de Teclas especiales"
+category = "Interfaz"
+what = "Evita la ventana que aparece al pulsar Mayús cinco veces."
+help = "Esa ventana molesta, sobre todo jugando. Esto desactiva el atajo que la lanza; la función de Teclas especiales se puede seguir activando desde Accesibilidad."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Control Panel\Accessibility\StickyKeys'
+name = "Flags"
+kind = "string"
+value = "506"
+
+[[tweak]]
+id = "long-paths"
+name = "Rutas largas (más de 260 caracteres)"
+category = "Interfaz"
+what = "Permite que los programas compatibles usen rutas de archivo muy largas."
+help = "Evita errores al copiar o borrar archivos con rutas muy largas (típico en carpetas de desarrollo). No cambia nada a las aplicaciones que no lo soportan. Necesita administrador."
+risk = "safe"
+restart = "reboot"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SYSTEM\CurrentControlSet\Control\FileSystem'
+name = "LongPathsEnabled"
+kind = "dword"
+value = "1"

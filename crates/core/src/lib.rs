@@ -7,6 +7,7 @@ mod disk;
 mod protect;
 mod restore;
 mod startup;
+mod tweaks;
 mod uninstall;
 mod rules;
 
@@ -26,4 +27,5 @@ pub use uninstall::{
     find_leftovers, list_programs, program_icons, remove_leftovers, restore_registry, uninstall_program, Leftover,
     LeftoverKind, LeftoverOutcome, Program, UninstallOutcome,
 };
+pub use tweaks::{tweak_set, tweaks_list, TweakInfo};
 pub use protect::{is_protected, Protected};

@@ -7,7 +7,7 @@ use wincleaner_core::{
     builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
     list_programs, program_icons, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
-    scan_dir, scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
@@ -234,6 +234,39 @@ async fn registry_restore(batch: String) -> Result<u64, String> {
         .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn tweaks_state() -> Result<Vec<TweakInfo>, String> {
+    tauri::async_runtime::spawn_blocking(tweaks_list).await.map_err(|e| e.to_string())
+}
+
+/// Aplica o deshace un ajuste del catálogo; el núcleo guarda y restaura los valores originales.
+#[tauri::command]
+async fn tweak_apply(id: String, enable: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || tweak_set(&id, enable, &data_dir()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn app_is_admin() -> bool {
+    tauri::async_runtime::spawn_blocking(is_admin).await.unwrap_or(false)
+}
+
+/// Reinicia el Explorador para que se apliquen ajustes de la barra de tareas y el menú Inicio.
+#[tauri::command]
+fn restart_explorer() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("taskkill")
+            .args(["/f", "/im", "explorer.exe"])
+            .creation_flags(0x0800_0000)
+            .status();
+        std::process::Command::new("explorer.exe").spawn().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Apps del catálogo de debloat que están instaladas. PowerShell tarda: hilo aparte.
 #[tauri::command]
 async fn debloat_list() -> Result<Vec<Installed>, String> {
@@ -256,7 +289,7 @@ fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

@@ -7,6 +7,7 @@
   import Restore from './Restore.svelte';
   import Debloat from './Debloat.svelte';
   import Uninstall from './Uninstall.svelte';
+  import Tweaks from './Tweaks.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
@@ -15,6 +16,7 @@
     ['startup', 'Arranque'],
     ['uninstall', 'Desinstalar'],
     ['debloat', 'Preinstaladas'],
+    ['tweaks', 'Ajustes'],
     ['restore', 'Restauración'],
   ];
 
@@ -75,6 +77,8 @@
           <Uninstall {notify} {refreshQuarantine} />
         {:else if view === 'debloat'}
           <Debloat {notify} />
+        {:else if view === 'tweaks'}
+          <Tweaks {notify} />
         {:else if view === 'restore'}
           <Restore {notify} />
         {:else}
