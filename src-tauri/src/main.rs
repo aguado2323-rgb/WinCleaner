@@ -9,6 +9,7 @@ use wincleaner_core::{
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
     find_duplicates, find_large_old, quarantine_duplicates, user_folders, DupReport, DupSelection, Folder, OldFile, service_set, services_list, ServiceInfo, scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    power_add_ultimate, power_plans, power_set, Plan,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
