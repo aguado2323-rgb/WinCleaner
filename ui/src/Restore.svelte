@@ -41,26 +41,28 @@
   load();
 </script>
 
-<p class="label">{t('Restauración')}</p>
-<h1 class="h1">{t('Vuelve atrás si algo falla.')}</h1>
-<p class="lede">{t('Un punto de restauración es una foto de la configuración de Windows. Si un cambio sale mal, puedes volver a ese momento. Crea uno antes de tocar nada importante.')}</p>
+<div class="sticky">
+  <p class="label">{t('Restauración')}</p>
+  <h1 class="h1">{t('Vuelve atrás si algo falla.')}</h1>
+  <p class="lede">{t('Un punto de restauración es una foto de la configuración de Windows. Si un cambio sale mal, puedes volver a ese momento. Crea uno antes de tocar nada importante.')}</p>
 
-{#if !loading && !admin}
-  <section class="admin">
-    <p><b>{t('Modo administrador.')}</b> {t('Windows exige permisos de administrador para crear puntos de restauración.')}</p>
-    <span class="acts"><button class="btn" onclick={elevate}>{t('Reiniciar como administrador')}</button>
-    <Help text={H.restoreAdmin.text} risk={H.restoreAdmin.risk} label={t('Qué hace Reiniciar como administrador')} /></span>
+  {#if !loading && !admin}
+    <section class="admin">
+      <p><b>{t('Modo administrador.')}</b> {t('Windows exige permisos de administrador para crear puntos de restauración.')}</p>
+      <span class="acts"><button class="btn" onclick={elevate}>{t('Reiniciar como administrador')}</button>
+      <Help text={H.restoreAdmin.text} risk={H.restoreAdmin.risk} label={t('Qué hace Reiniciar como administrador')} /></span>
+    </section>
+  {/if}
+
+  <section class="act">
+    <button class="btn primary" disabled={busy || loading || !admin} onclick={create}>
+      {busy ? t('Creando…') : t('Crear punto ahora')}
+    </button>
+    <Help text={H.restoreCreate.text} risk={H.restoreCreate.risk} label={t('Qué hace Crear punto')} />
+    <button class="link" onclick={openRestore}>{t('Abrir Restaurar sistema')} ↗</button>
+    <Help text={H.restoreOpen.text} risk={H.restoreOpen.risk} label={t('Qué hace Abrir Restaurar sistema')} />
   </section>
-{/if}
-
-<section class="act">
-  <button class="btn primary" disabled={busy || loading || !admin} onclick={create}>
-    {busy ? t('Creando…') : t('Crear punto ahora')}
-  </button>
-  <Help text={H.restoreCreate.text} risk={H.restoreCreate.risk} label={t('Qué hace Crear punto')} />
-  <button class="link" onclick={openRestore}>{t('Abrir Restaurar sistema')} ↗</button>
-  <Help text={H.restoreOpen.text} risk={H.restoreOpen.risk} label={t('Qué hace Abrir Restaurar sistema')} />
-</section>
+</div>
 <p class="note">{t('Windows solo permite un punto nuevo cada 24 horas. Para volver a uno anterior se usa el asistente oficial de Windows, no WinCleaner.')}</p>
 
 <div class="head">

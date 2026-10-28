@@ -45,19 +45,21 @@
   load();
 </script>
 
-<p class="label">{t('Arranque')}</p>
-<h1 class="h1">{t('Lo que arranca con Windows.')}</h1>
-<p class="lede">{t('Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras.')} <Help text={H.startupToggle.text} risk={H.startupToggle.risk} label={t('Qué hace Sí/No')} /></p>
+<div class="sticky">
+  <p class="label">{t('Arranque')}</p>
+  <h1 class="h1">{t('Lo que arranca con Windows.')}</h1>
+  <p class="lede">{t('Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras.')} <Help text={H.startupToggle.text} risk={H.startupToggle.risk} label={t('Qué hace Sí/No')} /></p>
 
-<section class="summary">
-  <span class="big num">{active}<small>/{items.length}</small></span>
-  <span class="cap">{t('se inician con Windows')}</span>
-  <div class="tabs" role="tablist">
-    <button role="tab" aria-selected={filter === 'all'} class:on={filter === 'all'} onclick={() => (filter = 'all')}>{t('Todos')}</button>
-    <button role="tab" aria-selected={filter === 'on'} class:on={filter === 'on'} onclick={() => (filter = 'on')}>{t('Activos')}</button>
-    <button role="tab" aria-selected={filter === 'off'} class:on={filter === 'off'} onclick={() => (filter = 'off')}>{t('Desactivados')}</button>
-  </div>
-</section>
+  <section class="summary">
+    <span class="big num">{active}<small>/{items.length}</small></span>
+    <span class="cap">{t('se inician con Windows')}</span>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected={filter === 'all'} class:on={filter === 'all'} onclick={() => (filter = 'all')}>{t('Todos')}</button>
+      <button role="tab" aria-selected={filter === 'on'} class:on={filter === 'on'} onclick={() => (filter = 'on')}>{t('Activos')}</button>
+      <button role="tab" aria-selected={filter === 'off'} class:on={filter === 'off'} onclick={() => (filter = 'off')}>{t('Desactivados')}</button>
+    </div>
+  </section>
+</div>
 
 {#if loading}
   <p class="empty num">···</p>

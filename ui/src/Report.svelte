@@ -23,9 +23,11 @@
   load();
 </script>
 
-<p class="label">{t('Informe')}</p>
-<h1 class="h1">{t('Lo que llevas liberado.')}</h1>
-<p class="lede">{t('Resumen de lo que WinCleaner ha hecho en este equipo. Solo guarda cifras y fechas, nunca nombres de archivos.')} <Help text={H.reportInfo.text} risk={H.reportInfo.risk} label={t('Qué guarda el informe')} /></p>
+<div class="sticky">
+  <p class="label">{t('Informe')}</p>
+  <h1 class="h1">{t('Lo que llevas liberado.')}</h1>
+  <p class="lede">{t('Resumen de lo que WinCleaner ha hecho en este equipo. Solo guarda cifras y fechas, nunca nombres de archivos.')} <Help text={H.reportInfo.text} risk={H.reportInfo.risk} label={t('Qué guarda el informe')} /></p>
+</div>
 
 {#if !r}
   <p class="empty num">···</p>

@@ -112,62 +112,64 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
 
-<p class="label">{t('Duplicados')}</p>
-<h1 class="h1">{tab === 'dups' ? t('Lo mismo, más de una vez.') : t('Grande y olvidado.')}</h1>
-<p class="lede">
-  {#if tab === 'dups'}
-    {t('Busca archivos idénticos (se comparan por contenido, no por nombre) en tus carpetas. Eliges qué copia se queda y el resto va a la cuarentena.')}
-  {:else}
-    {t('Archivos pesados que llevan tiempo sin modificarse: instaladores, ISOs, vídeos viejos. Tú decides cuáles se van a la cuarentena.')}
-  {/if}
-  <Help text={tab === 'dups' ? H.dupInfo.text : H.oldInfo.text} risk="safe" label={t('Cómo funciona')} />
-</p>
+<div class="sticky">
+  <p class="label">{t('Duplicados')}</p>
+  <h1 class="h1">{tab === 'dups' ? t('Lo mismo, más de una vez.') : t('Grande y olvidado.')}</h1>
+  <p class="lede">
+    {#if tab === 'dups'}
+      {t('Busca archivos idénticos (se comparan por contenido, no por nombre) en tus carpetas. Eliges qué copia se queda y el resto va a la cuarentena.')}
+    {:else}
+      {t('Archivos pesados que llevan tiempo sin modificarse: instaladores, ISOs, vídeos viejos. Tú decides cuáles se van a la cuarentena.')}
+    {/if}
+    <Help text={tab === 'dups' ? H.dupInfo.text : H.oldInfo.text} risk="safe" label={t('Cómo funciona')} />
+  </p>
 
-<div class="tabs">
-  <button class:on={tab === 'dups'} onclick={() => switchTab('dups')}>{t('Duplicados')}</button>
-  <button class:on={tab === 'old'} onclick={() => switchTab('old')}>{t('Grandes y antiguos')}</button>
-</div>
-
-<section class="setup">
-  <div class="folders" role="group" aria-label={t('Carpetas a revisar')}>
-    {#each folders as f (f.id)}
-      <label class="chk">
-        <input type="checkbox" bind:checked={chosen[f.id]} />
-        <span class="box" aria-hidden="true"></span>
-        <span>{t(f.name)}</span>
-      </label>
-    {/each}
+  <div class="tabs">
+    <button class:on={tab === 'dups'} onclick={() => switchTab('dups')}>{t('Duplicados')}</button>
+    <button class:on={tab === 'old'} onclick={() => switchTab('old')}>{t('Grandes y antiguos')}</button>
   </div>
-  <div class="opts">
-    <label>
-      {t('Tamaño mínimo')}
-      <select bind:value={minMb}>
-        {#if tab === 'dups'}
-          <option value={1}>1 MB</option>
-          <option value={10}>10 MB</option>
-          <option value={100}>100 MB</option>
-        {:else}
-          <option value={100}>100 MB</option>
-          <option value={500}>500 MB</option>
-          <option value={1000}>1 GB</option>
-        {/if}
-      </select>
-    </label>
-    {#if tab === 'old'}
+
+  <section class="setup">
+    <div class="folders" role="group" aria-label={t('Carpetas a revisar')}>
+      {#each folders as f (f.id)}
+        <label class="chk">
+          <input type="checkbox" bind:checked={chosen[f.id]} />
+          <span class="box" aria-hidden="true"></span>
+          <span>{t(f.name)}</span>
+        </label>
+      {/each}
+    </div>
+    <div class="opts">
       <label>
-        {t('Sin tocar desde hace')}
-        <select bind:value={days}>
-          <option value={180}>{t('6 meses')}</option>
-          <option value={365}>{t('1 año')}</option>
-          <option value={730}>{t('2 años')}</option>
+        {t('Tamaño mínimo')}
+        <select bind:value={minMb}>
+          {#if tab === 'dups'}
+            <option value={1}>1 MB</option>
+            <option value={10}>10 MB</option>
+            <option value={100}>100 MB</option>
+          {:else}
+            <option value={100}>100 MB</option>
+            <option value={500}>500 MB</option>
+            <option value={1000}>1 GB</option>
+          {/if}
         </select>
       </label>
-    {/if}
-    <button class="btn primary" disabled={!anyFolder || phase === 'scanning'} onclick={search}>
-      {phase === 'scanning' ? t('Buscando…') : phase === 'done' ? t('Buscar de nuevo') : t('Buscar')}
-    </button>
-  </div>
-</section>
+      {#if tab === 'old'}
+        <label>
+          {t('Sin tocar desde hace')}
+          <select bind:value={days}>
+            <option value={180}>{t('6 meses')}</option>
+            <option value={365}>{t('1 año')}</option>
+            <option value={730}>{t('2 años')}</option>
+          </select>
+        </label>
+      {/if}
+      <button class="btn primary" disabled={!anyFolder || phase === 'scanning'} onclick={search}>
+        {phase === 'scanning' ? t('Buscando…') : phase === 'done' ? t('Buscar de nuevo') : t('Buscar')}
+      </button>
+    </div>
+  </section>
+</div>
 
 {#if phase === 'scanning'}
   <p class="empty num">···</p>

@@ -63,20 +63,22 @@
   load();
 </script>
 
-<p class="label">{t('Ajustes de Windows')}</p>
-<h1 class="h1">{t('Windows a tu manera.')}</h1>
-<p class="lede">{t('Cambios opcionales en el propio Windows (no en WinCleaner): privacidad, rendimiento e interfaz. Pulsa «Aplicar» para activar el cambio y «Deshacer» para volver a como estaba.')} <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label={t('Cómo funcionan los ajustes')} /></p>
+<div class="sticky">
+  <p class="label">{t('Ajustes de Windows')}</p>
+  <h1 class="h1">{t('Windows a tu manera.')}</h1>
+  <p class="lede">{t('Cambios opcionales en el propio Windows (no en WinCleaner): privacidad, rendimiento e interfaz. Pulsa «Aplicar» para activar el cambio y «Deshacer» para volver a como estaba.')} <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label={t('Cómo funcionan los ajustes')} /></p>
 
-<section class="top">
-  <span class="big num">{appliedCount}<small>/{items.length}</small></span>
-  <span class="cap">{t('cambios aplicados en Windows')}</span>
-  <label class="pt">
-    <input type="checkbox" bind:checked={makePoint} />
-    <span class="box" aria-hidden="true"></span>
-    <span>{t('Punto de restauración antes de empezar')}</span>
-  </label>
-  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label={t('Qué es un punto de restauración')} />
-</section>
+  <section class="top">
+    <span class="big num">{appliedCount}<small>/{items.length}</small></span>
+    <span class="cap">{t('cambios aplicados en Windows')}</span>
+    <label class="pt">
+      <input type="checkbox" bind:checked={makePoint} />
+      <span class="box" aria-hidden="true"></span>
+      <span>{t('Punto de restauración antes de empezar')}</span>
+    </label>
+    <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label={t('Qué es un punto de restauración')} />
+  </section>
+</div>
 {#if !loading && !admin}
   <p class="note">{t('Sin permisos de administrador: los ajustes marcados como «Admin» no se pueden cambiar. Puedes reiniciar como administrador desde «Restauración».')}</p>
 {/if}

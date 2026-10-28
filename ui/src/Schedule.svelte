@@ -60,9 +60,11 @@
   load();
 </script>
 
-<p class="label">{t('Programación')}</p>
-<h1 class="h1">{t('Que se limpie solo.')}</h1>
-<p class="lede">{t('WinCleaner puede hacer una limpieza segura a la hora que elijas, sin abrir ventana, y avisarte cuando acabe. Todo va a la cuarentena.')} <Help text={H.schedAuto.text} risk={H.schedAuto.risk} label={t('Cómo funciona la programación')} /></p>
+<div class="sticky">
+  <p class="label">{t('Programación')}</p>
+  <h1 class="h1">{t('Que se limpie solo.')}</h1>
+  <p class="lede">{t('WinCleaner puede hacer una limpieza segura a la hora que elijas, sin abrir ventana, y avisarte cuando acabe. Todo va a la cuarentena.')} <Help text={H.schedAuto.text} risk={H.schedAuto.risk} label={t('Cómo funciona la programación')} /></p>
+</div>
 
 {#if !cfg}
   <p class="empty num">···</p>

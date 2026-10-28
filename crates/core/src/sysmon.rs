@@ -39,6 +39,10 @@ pub struct PhysDisk {
     pub media: String,
     pub health: String,
     pub size: u64,
+    /// Temperatura y desgaste (% de vida usada) del contador de fiabilidad. Windows solo los da
+    /// en algunos discos y a veces solo como administrador: si no hay dato, `None`.
+    pub temp: Option<f32>,
+    pub wear: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -323,7 +327,7 @@ mod imp {
 
     /// Discos físicos con el estado de salud que informa Windows (no pide administrador).
     pub fn drives() -> Vec<PhysDisk> {
-        let script = "Get-PhysicalDisk | ForEach-Object { $_.FriendlyName + '|' + $_.MediaType + '|' + $_.HealthStatus + '|' + $_.Size }";
+        let script = "Get-PhysicalDisk | ForEach-Object { $r = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue; $_.FriendlyName + '|' + $_.MediaType + '|' + $_.HealthStatus + '|' + $_.Size + '|' + $r.Temperature + '|' + $r.Wear }";
         powershell(script).map(|t| super::parse_drives(&t)).unwrap_or_default()
     }
 }
@@ -384,16 +388,19 @@ fn parse_nvidia(text: &str) -> Vec<GpuLive> {
         .collect()
 }
 
-/// `nombre|tipo|salud|bytes` por línea (Get-PhysicalDisk).
+/// `nombre|tipo|salud|bytes|grados|desgaste` por línea (Get-PhysicalDisk y su contador de fiabilidad).
+/// Los dos últimos campos pueden venir vacíos o faltar; 0 °C también cuenta como «sin dato».
 #[cfg_attr(not(windows), allow(dead_code))]
 fn parse_drives(text: &str) -> Vec<PhysDisk> {
     text.lines()
         .filter_map(|l| {
             let f: Vec<&str> = l.trim().split('|').map(str::trim).collect();
-            if f.len() != 4 || f[0].is_empty() {
+            if !(f.len() == 4 || f.len() == 6) || f[0].is_empty() {
                 return None;
             }
-            Some(PhysDisk { name: f[0].to_string(), media: f[1].to_string(), health: f[2].to_string(), size: f[3].parse().unwrap_or(0) })
+            let temp = f.get(4).and_then(|s| s.parse::<f32>().ok()).filter(|t| *t > 0.0 && *t < 150.0);
+            let wear = f.get(5).and_then(|s| s.parse::<u8>().ok()).filter(|w| *w <= 100);
+            Some(PhysDisk { name: f[0].to_string(), media: f[1].to_string(), health: f[2].to_string(), size: f[3].parse().unwrap_or(0), temp, wear })
         })
         .collect()
 }
@@ -445,10 +452,13 @@ mod tests {
 
     #[test]
     fn parses_physical_disks() {
-        let d = parse_drives("Samsung SSD 980|SSD|Healthy|500107862016\r\nvacío|HDD\r\nWD Blue|HDD|Warning|1000204886016\r\n");
-        assert_eq!(d.len(), 2);
+        let d = parse_drives("Samsung SSD 980|SSD|Healthy|500107862016|38|3\r\nvacío|HDD\r\nWD Blue|HDD|Warning|1000204886016||\r\nViejo|HDD|Healthy|1\r\n");
+        assert_eq!(d.len(), 3);
         assert_eq!((d[0].media.as_str(), d[0].health.as_str(), d[0].size), ("SSD", "Healthy", 500107862016));
+        assert_eq!((d[0].temp, d[0].wear), (Some(38.0), Some(3)));
         assert_eq!(d[1].health, "Warning");
+        assert_eq!((d[1].temp, d[1].wear), (None, None));
+        assert_eq!(d[2].temp, None);
     }
 
     #[test]

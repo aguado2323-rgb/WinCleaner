@@ -47,12 +47,18 @@ body { margin: 0; background: var(--paper); color: var(--ink); overflow: hidden;
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 ::selection { background: var(--accent); color: var(--on-accent); }
-::-webkit-scrollbar { width: 12px; }
-::-webkit-scrollbar-thumb { background: var(--rule); border: 3px solid var(--paper); }
+/* Sin barras de desplazamiento visibles: se sigue pudiendo desplazar con la rueda, el táctil o el teclado. */
+* { scrollbar-width: none; }
+::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Cabecera de cada pantalla: se queda fija arriba mientras la lista se desplaza por debajo. Lleva el mismo
+   fondo que la página (sin caja ni borde) y un degradado abajo para que lo de debajo se desvanezca al pasar. */
+.sticky { position: sticky; top: 0; z-index: 3; margin: -32px -40px 0; padding: 32px 40px 6px; background: var(--paper); }
+.sticky::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 22px; background: linear-gradient(var(--paper), transparent); pointer-events: none; }
 
 /* Piezas compartidas */
-.page > .label:first-child { color: var(--accent); font-weight: 600; }
-.page > .label:first-child::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--accent); border-radius: 2px; }
+.page > .label:first-child, .sticky > .label:first-child { color: var(--accent); font-weight: 600; }
+.page > .label:first-child::before, .sticky > .label:first-child::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--accent); border-radius: 2px; }
 .label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .h1 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }

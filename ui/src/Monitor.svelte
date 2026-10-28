@@ -84,6 +84,8 @@
   let netMax = $derived(Math.max(1, ...netHistory));
   const rate = (b) => fmt(b) + '/s';
   const healthy = (h) => /^(healthy|ok)$/i.test(h);
+  // Windows da el estado en inglés: se traduce lo conocido y lo demás se muestra tal cual.
+  const health = (h) => ({ warning: t('Aviso'), unhealthy: t('Con fallos'), unknown: t('Desconocida') })[String(h).toLowerCase()] ?? (h || t('Desconocida'));
   let ramPct = $derived(live ? pct(live.ram_used, live.ram_total) : 0);
   let cpuPct = $derived(live ? Math.round(live.cpu) : 0);
 </script>
@@ -121,6 +123,22 @@
           <p class="sub num">{t('{a} libres de {b}', { a: fmt(d.free), b: fmt(d.total) })}</p>
         </div>
       {/each}
+    </section>
+
+    <section>
+      <p class="k">{t('Salud de los discos')}</p>
+      {#if !specs}
+        <p class="sub num">···</p>
+      {:else if specs.drives.length}
+        {#each specs.drives as d (d.name)}
+          <div class="disk">
+            <div class="row"><span>{d.name}</span><b class="state" class:bad={!healthy(d.health)}>{healthy(d.health) ? t('Correcta') : health(d.health)}</b></div>
+            <p class="sub num">{[d.media, d.size ? fmt(d.size) : '', d.temp != null ? `${Math.round(d.temp)} °C` : '', d.wear != null ? t('{w}% de vida usada', { w: d.wear }) : ''].filter(Boolean).join(' · ')}</p>
+          </div>
+        {/each}
+      {:else}
+        <p class="sub">{t('Windows no informa de la salud de los discos en este equipo.')}</p>
+      {/if}
     </section>
 
     <section>
@@ -178,10 +196,6 @@
           {#if specs.cpu}<dt>CPU</dt><dd>{specs.cpu}<small>{t('{p} núcleos · {l} hilos', { p: specs.physical_cores, l: specs.logical_cores })}</small></dd>{/if}
           <dt>RAM</dt><dd>{fmt(specs.ram_total)}</dd>
           {#each specs.gpus as g, i (g)}<dt>{i ? '' : 'GPU'}</dt><dd>{g}</dd>{/each}
-          {#each specs.drives as d (d.name)}
-            <dt>{t('Disco')}</dt>
-            <dd>{d.name}<small>{d.media}{d.size ? ' · ' + fmt(d.size) : ''} · <span class:bad={!healthy(d.health)}>{healthy(d.health) ? t('Salud: correcta') : t('Salud') + ': ' + d.health}</span></small></dd>
-          {/each}
           <dt>{t('Encendido')}</dt><dd>{uptime(live.uptime)}</dd>
         </dl>
       </section>
@@ -192,7 +206,7 @@
 </aside>
 
 <style>
-  .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 330px; margin: 32px 32px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; max-height: calc(100vh - 64px); overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+  .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 330px; margin: 32px 32px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; max-height: calc(100vh - 64px); overflow-x: hidden; overflow-y: auto; }
   .head { display: flex; align-items: center; justify-content: space-between; }
   .head .label { margin: 0; }
   .close { border: 0; background: none; padding: 0 4px; font-size: 20px; line-height: 1; color: var(--ink-3); }
@@ -210,6 +224,8 @@
   b.num.small { font-size: 14px; letter-spacing: 0; }
   .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
   .bad { color: var(--danger, #c4281c); font-weight: 600; }
+  .state { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .state.bad { color: var(--danger, #c4281c); }
   .spark.thin { height: 28px; }
   b.num { font-size: 22px; font-weight: 500; letter-spacing: -0.03em; }
   .sub { margin: 0; font-size: 12px; color: var(--ink-3); }

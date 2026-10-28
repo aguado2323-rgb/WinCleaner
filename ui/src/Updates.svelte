@@ -52,18 +52,20 @@
   load();
 </script>
 
-<p class="label">{t('Actualizaciones')}</p>
-<h1 class="h1">{t('Programas al día.')}</h1>
-<p class="lede">{t('Busca versiones nuevas de tus programas con winget, el gestor oficial de Windows, y las instala. Las versiones nuevas suelen traer arreglos de seguridad.')} <Help text={H.updatesInfo.text} risk={H.updatesInfo.risk} label={t('Cómo funcionan las actualizaciones')} /></p>
+<div class="sticky">
+  <p class="label">{t('Actualizaciones')}</p>
+  <h1 class="h1">{t('Programas al día.')}</h1>
+  <p class="lede">{t('Busca versiones nuevas de tus programas con winget, el gestor oficial de Windows, y las instala. Las versiones nuevas suelen traer arreglos de seguridad.')} <Help text={H.updatesInfo.text} risk={H.updatesInfo.risk} label={t('Cómo funcionan las actualizaciones')} /></p>
 
-<section class="top">
-  <span class="big num">{loading ? '···' : items.length}</span>
-  <span class="cap">{items.length === 1 ? t('programa con actualización') : t('programas con actualización')}</span>
-  <button class="btn primary" disabled={working || !chosen.length} onclick={run}>
-    {working ? t('Actualizando…') : t('Actualizar {n}', { n: chosen.length })}
-  </button>
-  <button class="link" disabled={working || loading} onclick={load}>{t('Buscar de nuevo')}</button>
-</section>
+  <section class="top">
+    <span class="big num">{loading ? '···' : items.length}</span>
+    <span class="cap">{items.length === 1 ? t('programa con actualización') : t('programas con actualización')}</span>
+    <button class="btn primary" disabled={working || !chosen.length} onclick={run}>
+      {working ? t('Actualizando…') : t('Actualizar {n}', { n: chosen.length })}
+    </button>
+    <button class="link" disabled={working || loading} onclick={load}>{t('Buscar de nuevo')}</button>
+  </section>
+</div>
 
 {#if loading}
   <p class="empty num">···</p>

@@ -64,19 +64,21 @@
   load();
 </script>
 
-<p class="label">{t('Preinstaladas')}</p>
-<h1 class="h1">{t('Quita lo que no pediste.')}</h1>
-<p class="lede">{t('Aplicaciones que vienen preinstaladas con Windows o con tu equipo. Solo aparecen las que están instaladas y se pueden quitar sin romper nada. Todas se reinstalan desde Microsoft Store.')}</p>
+<div class="sticky">
+  <p class="label">{t('Preinstaladas')}</p>
+  <h1 class="h1">{t('Quita lo que no pediste.')}</h1>
+  <p class="lede">{t('Aplicaciones que vienen preinstaladas con Windows o con tu equipo. Solo aparecen las que están instaladas y se pueden quitar sin romper nada. Todas se reinstalan desde Microsoft Store.')}</p>
 
-<section class="act">
-  <button class="btn primary" disabled={!chosen.length || loading} onclick={() => (confirming = true)}>
-    {t('Quitar')} {chosen.length || ''}
-  </button>
-  <Help text={H.debloatRemove.text} risk={H.debloatRemove.risk} label={t('Qué hace Quitar')} />
-  <button class="link" onclick={setSafe}>{t('Marcar las seguras')}</button>
-  <Help text={H.debloatSafe.text} risk={H.debloatSafe.risk} label={t('Qué hace Marcar las seguras')} />
-  <button class="link" onclick={() => (selected = {})}>{t('Nada')}</button>
-</section>
+  <section class="act">
+    <button class="btn primary" disabled={!chosen.length || loading} onclick={() => (confirming = true)}>
+      {t('Quitar')} {chosen.length || ''}
+    </button>
+    <Help text={H.debloatRemove.text} risk={H.debloatRemove.risk} label={t('Qué hace Quitar')} />
+    <button class="link" onclick={setSafe}>{t('Marcar las seguras')}</button>
+    <Help text={H.debloatSafe.text} risk={H.debloatSafe.risk} label={t('Qué hace Marcar las seguras')} />
+    <button class="link" onclick={() => (selected = {})}>{t('Nada')}</button>
+  </section>
+</div>
 
 {#if loading}
   <p class="empty num">···</p>
