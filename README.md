@@ -16,8 +16,11 @@ npm install --prefix ui
 cargo test -p wincleaner-core     # funciona en cualquier SO
 cargo tauri dev                   # requiere Windows + WebView2 (cargo install tauri-cli)
 ```
-Falta añadir `src-tauri/icons/icon.ico` antes de empaquetar (`cargo tauri icon`).
+El ejecutable portable (sin instalador) sale como artefacto del CI.
 
 ## Skills de Claude Code
 `.claude/settings.json` activa architecture, product-discovery, quality-assurance e implementation suites de
 [levnikolaevich/claude-code-skills](https://github.com/levnikolaevich/claude-code-skills).
+
+## Licencia
+MIT. Ver `LICENSE`.
