@@ -22,3 +22,14 @@ jobs:
       - run: cargo test -p wincleaner-core
       - run: cargo clippy -p wincleaner-core -- -D warnings
       - run: cargo check -p wincleaner
+      - name: Compilar ejecutable portable
+        run: npx --yes @tauri-apps/cli@2 build --no-bundle
+        working-directory: .
+      - name: Tamaño del ejecutable
+        run: |
+          $f = Get-Item target/release/wincleaner.exe
+          "{0:N1} MB" -f ($f.Length / 1MB) | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WinCleaner-portable
+          path: target/release/wincleaner.exe
