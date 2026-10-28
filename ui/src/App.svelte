@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import Clean from './Clean.svelte';
   import Quarantine from './Quarantine.svelte';
+  import Space from './Space.svelte';
 
   let view = $state('clean');
   let q = $state({ path: '', batches: [] });
@@ -41,7 +42,9 @@
         <Icon name="shield" /> Cuarentena
         {#if q.batches.length}<span class="badge">{q.batches.length}</span>{/if}
       </button>
-      <button disabled><Icon name="disk" /> Espacio <span class="soon">Pronto</span></button>
+      <button class:active={view === 'space'} onclick={() => (view = 'space')}>
+        <Icon name="pie" /> Espacio
+      </button>
       <button disabled><Icon name="power" /> Arranque <span class="soon">Pronto</span></button>
     </nav>
 
@@ -53,6 +56,8 @@
       <div class="page">
         {#if view === 'clean'}
           <Clean {notify} {refreshQuarantine} openQuarantine={() => { view = 'quarantine'; refreshQuarantine(); }} />
+        {:else if view === 'space'}
+          <Space {notify} />
         {:else}
           <Quarantine {q} {notify} {refreshQuarantine} />
         {/if}

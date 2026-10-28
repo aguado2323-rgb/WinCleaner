@@ -2,6 +2,7 @@
 //! Sin dependencias de UI para poder probarlo en cualquier plataforma.
 
 mod clean;
+mod disk;
 mod rules;
 
 pub use clean::{
@@ -9,3 +10,4 @@ pub use clean::{
     ScanResult,
 };
 pub use rules::{builtin_rules, expand_env, Rule};
+pub use disk::{drives, scan_dir, Child, DirReport, FileEntry};

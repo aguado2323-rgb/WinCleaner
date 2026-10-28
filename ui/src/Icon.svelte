@@ -11,6 +11,10 @@
     trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3',
     lock: 'M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z',
     x: 'M6 6l12 12M18 6L6 18',
+    chevron: 'M9 6l6 6-6 6',
+    file: 'M7 3h7l5 5v13H7zM14 3v5h5',
+    external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
+    pie: 'M12 3a9 9 0 109 9h-9V3zM15 3.5A9 9 0 0120.5 9H15V3.5z',
   };
 </script>
 
