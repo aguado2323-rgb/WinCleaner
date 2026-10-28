@@ -4,7 +4,8 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, restore_batch, scan_rule, CleanReport, Mode, Rule, ScanResult,
+    builtin_rules, clean_rule, list_batches, purge_batch, restore_batch, scan_rule, BatchInfo,
+    CleanReport, Mode, Rule, ScanResult,
 };
 
 #[derive(Serialize)]
@@ -56,9 +57,44 @@ fn restore(batch: String) -> RestoreOutcome {
     RestoreOutcome { restored, errors }
 }
 
+#[derive(Serialize)]
+struct QuarantineInfo {
+    path: String,
+    batches: Vec<BatchInfo>,
+}
+
+#[tauri::command]
+fn quarantine() -> QuarantineInfo {
+    let dir = quarantine_dir();
+    QuarantineInfo { path: dir.display().to_string(), batches: list_batches(&dir) }
+}
+
+/// `batch` vacío = vaciar toda la cuarentena. Es el único borrado real de la app.
+#[tauri::command]
+fn purge(batch: Option<String>) -> Result<(), String> {
+    let dir = quarantine_dir();
+    let targets = match batch {
+        Some(b) => vec![b],
+        None => list_batches(&dir).into_iter().map(|b| b.batch).collect(),
+    };
+    for b in targets {
+        purge_batch(&dir, &b).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn open_quarantine() -> Result<(), String> {
+    let dir = quarantine_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    std::process::Command::new("explorer").arg(&dir).spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

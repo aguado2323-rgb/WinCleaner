@@ -1,120 +1,92 @@
 <script>
   import { invoke } from '@tauri-apps/api/core';
+  import Icon from './Icon.svelte';
+  import Clean from './Clean.svelte';
+  import Quarantine from './Quarantine.svelte';
 
-  let rules = $state([]);
-  let selected = $state({});
-  let results = $state({});
-  let busy = $state(false);
-  let confirming = $state(false);
-  let lastBatch = $state(null);
-  let message = $state('');
+  let view = $state('clean');
+  let q = $state({ path: '', batches: [] });
+  let toast = $state(null);
+  let toastTimer;
 
-  const fmt = (n) => (n > 1e9 ? (n / 1e9).toFixed(2) + ' GB' : (n / 1e6).toFixed(1) + ' MB');
-  let ids = $derived(rules.filter((r) => selected[r.id]).map((r) => r.id));
-  let total = $derived(Object.values(results).reduce((a, r) => a + r.bytes, 0));
-
-  async function load() {
-    rules = await invoke('list_rules');
-    selected = Object.fromEntries(rules.map((r) => [r.id, r.safe]));
-  }
-
-  async function analyze() {
-    busy = true;
+  async function refreshQuarantine() {
     try {
-      const res = await invoke('scan', { ids });
-      results = Object.fromEntries(res.map((r) => [r.rule_id, r]));
-    } catch (e) {
-      message = 'No se pudo analizar: ' + e;
+      q = await invoke('quarantine');
+    } catch {
+      /* sin cuarentena todavía */
     }
-    busy = false;
   }
 
-  async function clean() {
-    confirming = false;
-    busy = true;
-    try {
-      const out = await invoke('clean', { ids });
-      const files = out.reports.reduce((a, r) => a + r.files, 0);
-      const bytes = out.reports.reduce((a, r) => a + r.bytes, 0);
-      const errs = out.reports.reduce((a, r) => a + r.errors.length, 0);
-      lastBatch = files ? out.batch : null;
-      message = `${files} archivos (${fmt(bytes)}) movidos a la cuarentena.` + (errs ? ` ${errs} no se pudieron mover (en uso o sin permiso).` : '');
-    } catch (e) {
-      message = 'No se pudo limpiar: ' + e;
-    }
-    await analyze();
+  function notify(text, action) {
+    clearTimeout(toastTimer);
+    toast = { text, action };
+    toastTimer = setTimeout(() => (toast = null), action ? 9000 : 4500);
   }
 
-  async function undo() {
-    busy = true;
-    try {
-      const out = await invoke('restore', { batch: lastBatch });
-      message = `${out.restored} archivos restaurados.` + (out.errors.length ? ` ${out.errors.length} no se restauraron.` : '');
-      lastBatch = null;
-    } catch (e) {
-      message = 'No se pudo deshacer: ' + e;
-    }
-    await analyze();
-  }
-
-  load();
+  refreshQuarantine();
 </script>
 
-<main>
-  <header>
-    <h1>WinCleaner</h1>
-    <p>Sin anuncios, sin telemetría.</p>
-  </header>
+<div class="shell">
+  <aside>
+    <div class="brand">
+      <span class="mark"><Icon name="check" size={16} /></span>
+      <span>WinCleaner</span>
+    </div>
 
-  <section>
-    {#each rules as r (r.id)}
-      <label class="row">
-        <input type="checkbox" bind:checked={selected[r.id]} />
-        <span class="info"><strong>{r.name}</strong><small>{r.category} · {r.description}</small></span>
-        <span class="size">{results[r.id] ? fmt(results[r.id].bytes) : ''}</span>
-      </label>
-    {/each}
-  </section>
+    <nav>
+      <button class:active={view === 'clean'} onclick={() => (view = 'clean')}>
+        <Icon name="broom" /> Limpieza
+      </button>
+      <button class:active={view === 'quarantine'} onclick={() => { view = 'quarantine'; refreshQuarantine(); }}>
+        <Icon name="shield" /> Cuarentena
+        {#if q.batches.length}<span class="badge">{q.batches.length}</span>{/if}
+      </button>
+      <button disabled><Icon name="disk" /> Espacio <span class="soon">Pronto</span></button>
+      <button disabled><Icon name="power" /> Arranque <span class="soon">Pronto</span></button>
+    </nav>
 
-  <footer>
-    <span>{total ? 'Recuperable: ' + fmt(total) : ''}</span>
-    <button onclick={analyze} disabled={busy || !ids.length}>Analizar</button>
-    {#if lastBatch}<button onclick={undo} disabled={busy}>Deshacer</button>{/if}
-    <button class="primary" onclick={() => (confirming = true)} disabled={busy || !total}>Limpiar</button>
-  </footer>
+    <p class="promise"><Icon name="lock" size={14} /> Sin anuncios · sin telemetría<br />Código abierto (MIT)</p>
+  </aside>
 
-  {#if message}<p class="msg">{message}</p>{/if}
-
-  {#if confirming}
-    <div class="overlay">
-      <div class="dialog">
-        <h2>¿Limpiar {fmt(total)}?</h2>
-        <p>Los archivos no se borran: se mueven a una cuarentena y puedes deshacerlo ahora mismo con el botón «Deshacer».</p>
-        <div class="actions">
-          <button onclick={() => (confirming = false)}>Cancelar</button>
-          <button class="primary" onclick={clean}>Limpiar</button>
-        </div>
+  <main>
+    {#key view}
+      <div class="page">
+        {#if view === 'clean'}
+          <Clean {notify} {refreshQuarantine} openQuarantine={() => { view = 'quarantine'; refreshQuarantine(); }} />
+        {:else}
+          <Quarantine {q} {notify} {refreshQuarantine} />
+        {/if}
       </div>
+    {/key}
+  </main>
+
+  {#if toast}
+    <div class="toast" role="status">
+      <span>{toast.text}</span>
+      {#if toast.action}<button onclick={() => { toast.action.run(); toast = null; }}>{toast.action.label}</button>{/if}
     </div>
   {/if}
-</main>
+</div>
 
 <style>
-  main { max-width: 760px; margin: 0 auto; padding: 24px; }
-  h1 { margin: 0; font-size: 1.6rem; }
-  header p { color: var(--muted); margin: 4px 0 20px; }
-  .row { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; }
-  .info { flex: 1; display: flex; flex-direction: column; }
-  small { color: var(--muted); }
-  .size { font-variant-numeric: tabular-nums; color: var(--muted); }
-  footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 20px; }
-  footer span { margin-right: auto; font-weight: 600; }
-  button { border: 1px solid var(--border); background: var(--card); color: var(--text); padding: 8px 18px; border-radius: 10px; font: inherit; cursor: pointer; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .msg { margin-top: 16px; color: var(--muted); }
-  .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; }
-  .dialog { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; max-width: 420px; }
-  .dialog h2 { margin: 0 0 8px; font-size: 1.15rem; }
-  .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
-  button:disabled { opacity: 0.5; cursor: default; }
+  .shell { display: grid; grid-template-columns: 232px 1fr; height: 100vh; background:
+      radial-gradient(900px 500px at 85% -10%, var(--glow), transparent 60%), var(--canvas); }
+  aside { display: flex; flex-direction: column; padding: 22px 14px; border-right: 1px solid var(--hairline); background: color-mix(in srgb, var(--surface) 70%, transparent); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: 0.2px; padding: 0 10px 22px; }
+  .mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: #06121a; background: linear-gradient(135deg, var(--blue), var(--green)); }
+  nav { display: flex; flex-direction: column; gap: 2px; }
+  nav button { display: flex; align-items: center; gap: 11px; border: 0; background: none; padding: 9px 10px; border-radius: 9px; color: var(--mute); cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s; }
+  nav button:hover:not(:disabled) { background: var(--hairline); color: var(--ink); }
+  nav button.active { background: var(--hairline); color: var(--ink); box-shadow: inset 2px 0 0 var(--blue); }
+  nav button:disabled { opacity: 0.5; cursor: default; }
+  .badge { margin-left: auto; font-size: 11px; font-weight: 600; background: var(--blue); color: #06121a; border-radius: 99px; padding: 1px 7px; }
+  .soon { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ash); }
+  .promise { margin: auto 10px 0; font-size: 11.5px; line-height: 1.6; color: var(--ash); }
+  .promise :global(svg) { vertical-align: -2px; margin-right: 4px; }
+  main { overflow-y: auto; }
+  .page { max-width: 760px; margin: 0 auto; padding: 36px 36px 60px; animation: enter 0.35s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  @keyframes enter { from { opacity: 0; transform: translateY(8px); } }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; background: var(--elevated); border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 11px 14px 11px 18px; font-size: 13.5px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); animation: pop 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+  .toast button { border: 0; background: var(--cta-bg); color: var(--cta-fg); border-radius: 8px; padding: 5px 12px; font-weight: 600; cursor: pointer; }
+  @keyframes pop { from { opacity: 0; transform: translate(-50%, 10px) scale(0.96); } }
 </style>
