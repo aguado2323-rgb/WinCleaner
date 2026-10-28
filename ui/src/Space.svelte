@@ -28,6 +28,11 @@
       }))
   );
 
+  // La raíz activa es la más específica que contiene la ruta actual (Tu carpeta antes que Disco C:).
+  let activeRoot = $derived(
+    roots.filter((r) => current.startsWith(r.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path
+  );
+
   let tiles = $derived.by(() => {
     if (!report) return [];
     const kids = report.children.filter((c) => c.bytes > 0);
@@ -86,7 +91,7 @@
 
 <div class="roots">
   {#each roots as r (r.path)}
-    <button class:active={current === r.path || current.startsWith(r.path)} onclick={() => go(r.path)}>{r.label}</button>
+    <button class:active={activeRoot === r.path} onclick={() => go(r.path)}>{r.label}</button>
   {/each}
 </div>
 
