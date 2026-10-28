@@ -123,9 +123,9 @@ export const H = {
     risk: 'final',
     text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
   },
-  recycle: {
-    risk: 'final',
-    text: 'Vacía la Papelera de reciclaje de todas las unidades con la función oficial de Windows. A diferencia de la limpieza normal, esto NO pasa por la cuarentena y no se puede deshacer: revisa la Papelera antes si no estás seguro de lo que hay dentro.',
+  updatesInfo: {
+    risk: 'care',
+    text: 'Usa winget, el gestor de paquetes oficial de Windows, para buscar versiones nuevas de tus programas. WinCleaner no descarga nada por su cuenta: es winget quien baja e instala, con el instalador del propio fabricante. Una actualización puede cambiar el programa o pedir permisos de administrador; no se puede deshacer desde aquí, así que revisa la lista y cierra antes los programas que vayas a actualizar.',
   },
   powerInfo: {
     risk: 'reversible',
@@ -134,6 +134,10 @@ export const H = {
   powerUltimate: {
     risk: 'care',
     text: 'Añade el plan oculto «Máximo rendimiento» de Windows (no hace nada hasta que lo actives). Es para equipos enchufados: en una portátil o consola portátil con batería la gastará mucho más rápido y puede subir la temperatura. No todos los equipos lo ofrecen.',
+  },
+  recycle: {
+    risk: 'final',
+    text: 'Vacía la Papelera de reciclaje de todas las unidades con la función oficial de Windows. A diferencia de la limpieza normal, esto NO pasa por la cuarentena y no se puede deshacer: revisa la Papelera antes si no estás seguro de lo que hay dentro.',
   },
   tweakToggle: {
     risk: 'reversible',

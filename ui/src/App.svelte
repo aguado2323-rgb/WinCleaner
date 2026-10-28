@@ -10,6 +10,8 @@
   import Tweaks from './Tweaks.svelte';
   import Duplicates from './Duplicates.svelte';
   import Services from './Services.svelte';
+  import Updates from './Updates.svelte';
+  import Power from './Power.svelte';
   import Schedule from './Schedule.svelte';
 
   const sections = [
@@ -19,6 +21,7 @@
     ['duplicates', 'Duplicados'],
     ['startup', 'Arranque'],
     ['uninstall', 'Desinstalar'],
+    ['updates', 'Actualizaciones'],
     ['debloat', 'Preinstaladas'],
     ['tweaks', 'Ajustes de Windows'],
     ['services', 'Servicios'],
@@ -35,6 +38,7 @@
     duplicates: 'M8 8h11v11H8zM5 15V5h10',
     startup: 'M12 3v9M6.3 6.8a8 8 0 1 0 11.4 0',
     uninstall: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
+    updates: 'M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14',
     debloat: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5',
     services: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8',
     power: 'M13 3L5 13.5h6L10 21l8-10.5h-6z',
@@ -149,6 +153,8 @@
           <Startup {notify} />
         {:else if view === 'uninstall'}
           <Uninstall {notify} {refreshQuarantine} />
+        {:else if view === 'updates'}
+          <Updates {notify} />
         {:else if view === 'debloat'}
           <Debloat {notify} />
         {:else if view === 'tweaks'}
