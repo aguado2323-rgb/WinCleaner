@@ -219,3 +219,84 @@ description = "Caché de consultas de NuGet (.NET)."
 help = "Caché de consultas de NuGet, el gestor de paquetes de .NET. Se rehace sola, pero la próxima compilación puede tardar un poco más. Solo interesa a quien programa."
 paths = ["%LOCALAPPDATA%\\NuGet\\v3-cache"]
 safe = false
+
+[[rule]]
+id = "store-cache"
+name = "Microsoft Store: caché"
+category = "Sistema"
+description = "Caché temporal de la Tienda de Windows; se regenera sola."
+help = "Datos temporales que la Microsoft Store guarda para ir más rápido. Si la Tienda se queda cargando o da fallos, vaciar esto suele arreglarlo. Se recrea sola. No toca tus apps ni compras."
+paths = ["%LOCALAPPDATA%\\Packages\\Microsoft.WindowsStore_8wekyb3d8bbwe\\LocalCache"]
+safe = true
+
+[[rule]]
+id = "wer-queue"
+name = "Informes de errores del sistema"
+category = "Sistema"
+description = "Informes de errores de todo el equipo ya generados (requiere administrador)."
+help = "Informes de fallos que Windows guardó para enviar a Microsoft o para diagnóstico. Ocupan espacio y normalmente no se miran. Si estás investigando un fallo reciente, déjalo sin marcar. Necesita administrador."
+paths = ["%PROGRAMDATA%\\Microsoft\\Windows\\WER\\ReportArchive", "%PROGRAMDATA%\\Microsoft\\Windows\\WER\\ReportQueue"]
+safe = true
+
+[[rule]]
+id = "slack-cache"
+name = "Slack: caché"
+category = "Aplicaciones"
+description = "Imágenes y datos temporales de Slack; no cierra tu sesión."
+help = "Datos temporales que Slack guarda en tu equipo. Al abrirlo, cargará algo más lento la primera vez. No cierra tu sesión ni borra mensajes (están en los servidores de Slack). Cierra Slack antes de limpiar."
+paths = ["%APPDATA%\\Slack\\Cache", "%APPDATA%\\Slack\\Code Cache", "%APPDATA%\\Slack\\GPUCache"]
+safe = true
+
+[[rule]]
+id = "spotify-cache"
+name = "Spotify: caché"
+category = "Aplicaciones"
+description = "Caché de canciones escuchadas; no toca las descargas sin conexión."
+help = "Spotify guarda aquí trozos de las canciones que has escuchado para reproducirlas más rápido. Se rellena sola. No toca tus listas ni las canciones descargadas para escuchar sin conexión (están en otra carpeta). Cierra Spotify antes de limpiar."
+paths = ["%LOCALAPPDATA%\\Spotify\\Data"]
+safe = true
+
+[[rule]]
+id = "steam-htmlcache"
+name = "Steam: caché del navegador"
+category = "Juegos y gráficos"
+description = "Caché del navegador integrado de Steam; no toca tus juegos."
+help = "Páginas e imágenes de la tienda y la comunidad que Steam guarda. Se recrea sola. No toca tus juegos, partidas guardadas ni tu sesión. Cierra Steam antes de limpiar."
+paths = ["%LOCALAPPDATA%\\Steam\\htmlcache"]
+safe = true
+
+[[rule]]
+id = "epic-webcache"
+name = "Epic Games: caché web"
+category = "Juegos y gráficos"
+description = "Caché del lanzador de Epic Games; no toca tus juegos."
+help = "Datos temporales de la tienda del lanzador de Epic Games. Se recrean solos. No toca tus juegos ni partidas. Cierra el lanzador antes de limpiar."
+paths = ["%LOCALAPPDATA%\\EpicGamesLauncher\\Saved\\webcache"]
+safe = true
+
+[[rule]]
+id = "office-file-cache"
+name = "Office: caché de archivos"
+category = "Aplicaciones"
+description = "Copias temporales de archivos de Office abiertos desde la nube."
+help = "Copias temporales que Office guarda de documentos de OneDrive o SharePoint que has abierto. Se vuelven a descargar si hacen falta. Está sin marcar: si tienes cambios sin sincronizar en algún documento, ciérralo y espera a que se sincronice antes de limpiar."
+paths = ["%LOCALAPPDATA%\\Microsoft\\Office\\16.0\\OfficeFileCache"]
+safe = false
+
+[[rule]]
+id = "cargo-cache"
+name = "Rust (cargo): caché de paquetes"
+category = "Desarrollo"
+description = "Paquetes descargados por cargo; se vuelven a bajar al compilar."
+help = "Código fuente y paquetes que cargo, el gestor de Rust, descargó antes. Si lo borras, se vuelven a bajar al compilar (necesitarás internet). Solo interesa a quien programa; no afecta a tus proyectos."
+paths = ["%USERPROFILE%\\.cargo\\registry\\cache"]
+safe = false
+
+[[rule]]
+id = "gradle-cache"
+name = "Gradle: caché"
+category = "Desarrollo"
+description = "Dependencias descargadas por Gradle (Java, Android)."
+help = "Dependencias que Gradle descargó. Si las borras, se vuelven a bajar en la próxima compilación, que tardará más. Solo interesa a quien programa; no afecta a tus proyectos."
+paths = ["%USERPROFILE%\\.gradle\\caches"]
+safe = false

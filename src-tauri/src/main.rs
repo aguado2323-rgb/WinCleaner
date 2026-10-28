@@ -9,6 +9,9 @@ use wincleaner_core::{
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
     find_duplicates, find_large_old, quarantine_duplicates, user_folders, DupReport, DupSelection, Folder, OldFile, service_set, services_list, ServiceInfo, scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    update_apply, updates_list, Update,
+    power_add_ultimate, power_plans, power_set, Plan,
+    recycle_empty, recycle_info, RecycleInfo,
     history_record, history_report, HistoryEvent, HistoryKind, UsageReport,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
@@ -402,6 +405,51 @@ async fn schedule_now(config: Schedule) -> Result<LastRun, String> {
 }
 
 #[tauri::command]
+async fn updates_scan() -> Result<Vec<Update>, String> {
+    tauri::async_runtime::spawn_blocking(updates_list).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn updates_apply(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || update_apply(&id)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn power_list() -> Result<Vec<Plan>, String> {
+    tauri::async_runtime::spawn_blocking(power_plans).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn power_activate(guid: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || power_set(&guid)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn power_ultimate() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(power_add_ultimate).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn recycle_state() -> Result<RecycleInfo, String> {
+    tauri::async_runtime::spawn_blocking(recycle_info).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn recycle_clear() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let before = recycle_info();
+        recycle_empty()?;
+        history_record(
+            &data_dir(),
+            HistoryEvent { when: now_secs(), kind: HistoryKind::Recycle, files: before.items, bytes: before.bytes },
+        );
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn usage_report() -> Result<UsageReport, String> {
     tauri::async_runtime::spawn_blocking(|| history_report(&data_dir(), now_secs())).await.map_err(|e| e.to_string())
 }
@@ -413,7 +461,7 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, schedule_state, schedule_apply, schedule_now])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
