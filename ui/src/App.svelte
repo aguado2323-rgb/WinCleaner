@@ -8,6 +8,7 @@
   import Debloat from './Debloat.svelte';
   import Uninstall from './Uninstall.svelte';
   import Tweaks from './Tweaks.svelte';
+  import Schedule from './Schedule.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
@@ -17,6 +18,7 @@
     ['uninstall', 'Desinstalar'],
     ['debloat', 'Preinstaladas'],
     ['tweaks', 'Ajustes de Windows'],
+    ['schedule', 'Programación'],
     ['restore', 'Restauración'],
   ];
 
@@ -28,6 +30,7 @@
     startup: 'M12 3v9M6.3 6.8a8 8 0 1 0 11.4 0',
     uninstall: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
     debloat: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5',
+    schedule: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
     tweaks: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
     restore: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5M12 8v4l3 2',
   };
@@ -140,6 +143,8 @@
           <Debloat {notify} />
         {:else if view === 'tweaks'}
           <Tweaks {notify} />
+        {:else if view === 'schedule'}
+          <Schedule {notify} {refreshQuarantine} />
         {:else if view === 'restore'}
           <Restore {notify} />
         {:else}

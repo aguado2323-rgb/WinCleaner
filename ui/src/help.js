@@ -103,6 +103,18 @@ export const H = {
     text: 'Guarda una foto de la configuración de Windows antes de quitar apps. Ojo: las apps de la Tienda no vuelven con el punto de restauración, se reinstalan desde Microsoft Store.',
   },
 
+  schedAuto: {
+    risk: 'reversible',
+    text: 'Crea una tarea en el Programador de tareas de Windows que abre WinCleaner sin ventana a la hora elegida. Solo usa las categorías marcadas como seguras y lo que limpia va a la cuarentena, así que puedes devolverlo. Se quita desactivando esta opción.',
+  },
+  schedMode: {
+    risk: 'safe',
+    text: '«Limpiar» mueve a la cuarentena lo seguro (temporales, cachés) y te avisa de lo liberado. «Solo avisar» no toca nada: únicamente te dice cuánto espacio podrías recuperar.',
+  },
+  schedPurge: {
+    risk: 'final',
+    text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',

@@ -7,6 +7,7 @@ use wincleaner_core::{
     builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
     list_programs, program_icons, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
+    schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
     scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
@@ -287,9 +288,58 @@ fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct ScheduleState {
+    config: Schedule,
+    /// La tarea existe en el Programador de tareas de Windows.
+    task: bool,
+    exe: String,
+    last: Option<LastRun>,
+}
+
+fn exe_path() -> String {
+    std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+#[tauri::command]
+async fn schedule_state() -> Result<ScheduleState, String> {
+    tauri::async_runtime::spawn_blocking(|| ScheduleState {
+        config: schedule_load(&data_dir()),
+        task: schedule_task_exists(),
+        exe: exe_path(),
+        last: schedule_last_run(&data_dir()),
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn schedule_apply(config: Schedule) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || schedule_save(&config, &exe_path(), &data_dir()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn schedule_now(config: Schedule) -> Result<LastRun, String> {
+    config.validate()?;
+    tauri::async_runtime::spawn_blocking(move || schedule_run_now(&config, &data_dir(), &quarantine_dir(), now_secs()))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
+    // Lanzado por el Programador de tareas: sin ventana, hace la pasada y sale.
+    if std::env::args().any(|a| a == "--auto") {
+        run_scheduled(&data_dir(), &quarantine_dir(), now_secs());
+        return;
+    }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, schedule_state, schedule_apply, schedule_now])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
