@@ -32,6 +32,29 @@
     restore: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5M12 8v4l3 2',
   };
 
+  // Tema: sigue al sistema hasta que la persona elige; después se recuerda su elección.
+  const systemDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+  let theme = $state((() => {
+    try {
+      const t = localStorage.getItem('wc-theme');
+      if (t === 'light' || t === 'dark') return t;
+    } catch {
+      /* sin almacenamiento: se sigue al sistema */
+    }
+    return systemDark() ? 'dark' : 'light';
+  })());
+  $effect(() => {
+    document.documentElement.dataset.theme = theme;
+  });
+  function toggleTheme() {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('wc-theme', theme);
+    } catch {
+      /* no pasa nada: vale para esta sesión */
+    }
+  }
+
   let view = $state('clean');
   let q = $state({ path: '', batches: [] });
   let toast = $state(null);
@@ -63,17 +86,20 @@
   <aside>
     <div class="brand">
       <svg class="logo" viewBox="0 0 256 256" aria-hidden="true">
-        <rect width="256" height="256" rx="60" fill="#ff4d00" />
-        <path d="M40 92V74a18 18 0 0 1 18-18h108a18 18 0 0 1 18 18v18z" fill="#151512" />
-        <path d="M40 92h144v70a18 18 0 0 1-18 18H58a18 18 0 0 1-18-18z" fill="#f3f1ea" />
-        <circle cx="62" cy="74" r="6" fill="#f3f1ea" />
-        <circle cx="82" cy="74" r="6" fill="#f3f1ea" opacity=".6" />
-        <g transform="translate(150 144) scale(1.14) rotate(40) translate(-176 -150)">
-          <rect x="167" y="34" width="18" height="84" rx="9" fill="#151512" stroke="#ff4d00" stroke-width="10" />
-          <path d="M158 112h36l-3 34h-30z" fill="#151512" stroke="#ff4d00" stroke-width="10" stroke-linejoin="round" />
-          <path d="M155 142h42c6 22 4 48-21 78-25-30-27-56-21-78z" fill="#f3f1ea" stroke="#151512" stroke-width="10" stroke-linejoin="round" />
-        </g>
-      </svg>
+  <rect width="256" height="256" rx="60" fill="#ff4d00"/>
+  <path d="M40 92V74a18 18 0 0 1 18-18h108a18 18 0 0 1 18 18v18z" fill="#151512"/>
+  <path d="M40 92h144v70a18 18 0 0 1-18 18H58a18 18 0 0 1-18-18z" fill="#f3f1ea"/>
+  <circle cx="62" cy="74" r="6" fill="#f3f1ea"/>
+  <circle cx="82" cy="74" r="6" fill="#f3f1ea" opacity=".6"/>
+  <g transform="translate(156 132) rotate(38) scale(0.98)">
+    <path d="M-20 22L20 22L50 108L36 100L26 112L12 101L0 114L-12 101L-26 112L-36 100L-50 108Z" fill="#f3f1ea" stroke="#ff4d00" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M-20 22L20 22L50 108L36 100L26 112L12 101L0 114L-12 101L-26 112L-36 100L-50 108Z" fill="#f3f1ea"/>
+    <path d="M-9 34L-17 98M0 34V104M9 34L17 98" stroke="#ff4d00" stroke-width="4.5" stroke-linecap="round"/>
+    <rect x="-7" y="-112" width="14" height="150" rx="7" fill="#151512" stroke="#ff4d00" stroke-width="8"/>
+    <rect x="-25" y="12" width="50" height="22" rx="4" fill="#151512" stroke="#ff4d00" stroke-width="8"/>
+    <path d="M-25 23H25" stroke="#f3f1ea" stroke-width="2.5" stroke-dasharray="5 5"/>
+  </g>
+</svg>
       <span>Win<b>Cleaner</b></span>
     </div>
 
@@ -86,6 +112,17 @@
         </button>
       {/each}
     </nav>
+
+    <button class="theme" onclick={toggleTheme} aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+        {#if theme === 'dark'}
+          <path d="M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4" /><circle cx="12" cy="12" r="4" />
+        {:else}
+          <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />
+        {/if}
+      </svg>
+      <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+    </button>
   </aside>
 
   <main>
@@ -136,6 +173,9 @@
   nav button.active .ico { color: var(--accent); }
   nav button.active::before { content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 4px; border-radius: 0 3px 3px 0; background: var(--accent); }
   nav button .c { font-family: var(--mono); font-size: 11px; color: var(--on-accent); background: var(--accent); border-radius: 9px; padding: 0 6px; }
+  .theme { margin-top: auto; display: flex; align-items: center; gap: 12px; border: 1px solid rgb(255 255 255 / 0.14); background: none; border-radius: 8px; padding: 9px 12px; color: var(--side-dim); font-size: 13px; transition: color 0.12s, border-color 0.12s; }
+  .theme:hover { color: var(--side-ink); border-color: rgb(255 255 255 / 0.3); }
+  .theme .ico { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   main { overflow-y: auto; }
   .page { max-width: 780px; padding: 32px 40px 70px; animation: fade 0.18s; }
   .page.wide { max-width: 1060px; }

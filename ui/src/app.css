@@ -20,7 +20,7 @@
   font-family: var(--font);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --paper: #121210;
     --paper-2: #1b1b18;
@@ -30,6 +30,16 @@
     --rule: #2c2b26;
     --accent: #ff6a2b;
   }
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #121210;
+    --paper-2: #1b1b18;
+    --ink: #eeebe0;
+    --ink-2: #aaa79a;
+    --ink-3: #706e63;
+    --rule: #2c2b26;
+    --accent: #ff6a2b;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
