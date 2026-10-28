@@ -1,0 +1,72 @@
+# Servicios de Windows que se pueden pasar de «Automático» a «Manual» sin dañar el sistema.
+#
+# Reglas para añadir entradas (las comprueban los tests):
+#  - `service` es el nombre corto exacto del servicio (solo letras y cifras).
+#  - Nunca servicios de seguridad, actualización, red, audio, gráficos, instalador ni de arranque:
+#    Windows Update, Defender, Firewall, Seguridad de Windows, RPC, DCOM, DHCP, DNS...
+#  - Solo se pasa a «Manual»: el servicio sigue existiendo y Windows lo arranca si algo lo pide.
+#  - risk = "safe": casi nadie lo nota. risk = "care": hay quien lo usa; se explica en `help`.
+
+[[service]]
+id = "diagtrack"
+service = "DiagTrack"
+name = "Telemetría de Windows (experiencias de usuario conectadas)"
+what = "Servicio que recoge y envía datos de uso y diagnóstico a Microsoft."
+help = "Es el servicio que envía la telemetría. En «Manual» no arranca solo al encender el equipo, así que ahorra memoria y envíos. No afecta a las actualizaciones ni a la seguridad. Se nota tras reiniciar. Necesita administrador."
+risk = "safe"
+
+[[service]]
+id = "dmwappushservice"
+service = "dmwappushservice"
+name = "Mensajes push de telemetría (WAP)"
+what = "Complemento de la telemetría para recibir mensajes de configuración."
+help = "Solo lo usa la telemetría y la gestión de dispositivos de empresa. En un equipo personal puede ir en «Manual» sin consecuencias. Se nota tras reiniciar. Necesita administrador."
+risk = "safe"
+
+[[service]]
+id = "sysmain"
+service = "SysMain"
+name = "SysMain (Superfetch)"
+what = "Precarga en memoria las apps que más usas para que abran antes."
+help = "En un disco duro clásico ayuda; en un SSD apenas se nota y genera lecturas y uso de memoria en segundo plano. En «Manual» deja de precargar. Si tu equipo usa disco duro (no SSD), déjalo como está. Se nota tras reiniciar. Necesita administrador."
+risk = "care"
+
+[[service]]
+id = "mapsbroker"
+service = "MapsBroker"
+name = "Mapas descargados"
+what = "Actualiza los mapas sin conexión de la app Mapas de Windows."
+help = "Solo sirve si descargaste mapas para usarlos sin internet. En «Manual» deja de actualizarlos; la app Mapas sigue funcionando con conexión. Se nota tras reiniciar. Necesita administrador."
+risk = "safe"
+
+[[service]]
+id = "spooler"
+service = "Spooler"
+name = "Cola de impresión"
+what = "Gestiona las impresoras y los trabajos de impresión."
+help = "Si no tienes impresora (ni imprimes a PDF desde programas), no hace falta que arranque con Windows. Si imprimes, déjalo como está: con «Manual» imprimir puede fallar hasta que el servicio se inicie. Se nota tras reiniciar. Necesita administrador."
+risk = "care"
+
+[[service]]
+id = "xblauthmanager"
+service = "XblAuthManager"
+name = "Xbox Live: autenticación"
+what = "Inicia sesión en Xbox Live para los juegos y apps de Xbox."
+help = "Solo lo necesitan los juegos de la Tienda de Microsoft y Game Pass. Si juegas con Game Pass o usas Xbox en el PC, déjalo como está. Se nota tras reiniciar. Necesita administrador."
+risk = "care"
+
+[[service]]
+id = "xblgamesave"
+service = "XblGameSave"
+name = "Xbox Live: partidas guardadas"
+what = "Sincroniza en la nube las partidas de los juegos de Xbox."
+help = "Solo sirve a juegos de Xbox/Game Pass con partidas en la nube. Si no los usas, en «Manual» no hace falta que arranque. Se nota tras reiniciar. Necesita administrador."
+risk = "care"
+
+[[service]]
+id = "xboxnetapisvc"
+service = "XboxNetApiSvc"
+name = "Xbox Live: red"
+what = "Conexión de red de los servicios de Xbox Live."
+help = "Solo lo necesitan los juegos multijugador de Xbox/Game Pass. Si no los usas, en «Manual» no hace falta que arranque. Se nota tras reiniciar. Necesita administrador."
+risk = "care"

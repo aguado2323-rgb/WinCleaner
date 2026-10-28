@@ -6,6 +6,7 @@ mod debloat;
 mod disk;
 mod protect;
 mod restore;
+mod services;
 mod startup;
 mod tweaks;
 mod uninstall;
@@ -29,3 +30,4 @@ pub use uninstall::{
 };
 pub use tweaks::{tweak_set, tweaks_list, TweakInfo};
 pub use protect::{is_protected, Protected};
+pub use services::{service_set, services_list, ServiceInfo};
