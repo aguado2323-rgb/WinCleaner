@@ -210,7 +210,43 @@ pub fn purge_batch(quarantine_dir: &Path, batch: &str) -> std::io::Result<()> {
     if !valid_batch(batch) {
         return Err(std::io::Error::other("lote no válido"));
     }
-    fs::remove_dir_all(quarantine_dir.join(batch))
+    let dir = quarantine_dir.join(batch);
+    let mut failed = 0u64;
+    purge_dir(&dir, &mut failed);
+    if failed > 0 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!(
+                "{failed} archivos no se han podido borrar porque pertenecen al sistema o a otro usuario; \
+                 abre WinCleaner como administrador y vuelve a intentarlo"
+            ),
+        ));
+    }
+    fs::remove_dir_all(&dir)
+}
+
+/// Borra todo lo que puede. Los archivos que vienen de carpetas del sistema conservan sus permisos
+/// originales y a veces son de solo lectura, así que se quita ese atributo antes de reintentar.
+fn purge_dir(dir: &Path, failed: &mut u64) {
+    let Ok(read) = fs::read_dir(dir) else { return };
+    for entry in read.flatten() {
+        let path = entry.path();
+        let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+        if meta.is_dir() {
+            purge_dir(&path, failed);
+            if fs::remove_dir(&path).is_err() && fs::read_dir(&path).is_ok_and(|mut r| r.next().is_none()) {
+                *failed += 1;
+            }
+        } else if fs::remove_file(&path).is_err() {
+            let mut perms = meta.permissions();
+            #[allow(clippy::permissions_set_readonly_false)]
+            perms.set_readonly(false);
+            let _ = fs::set_permissions(&path, perms);
+            if fs::remove_file(&path).is_err() {
+                *failed += 1;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -301,5 +337,18 @@ mod tests {
         let rep = clean_rule(&rule, &quarantine(q.path()));
         assert_eq!(rep.files, 0);
         assert_eq!(rep.errors.len(), 1);
+    }
+
+    #[test]
+    fn purge_removes_read_only_files() {
+        let q = tempfile::tempdir().unwrap();
+        let f = q.path().join("7/rule/sub/ro.bin");
+        fs::create_dir_all(f.parent().unwrap()).unwrap();
+        fs::write(&f, b"x").unwrap();
+        let mut perms = fs::metadata(&f).unwrap().permissions();
+        perms.set_readonly(true);
+        fs::set_permissions(&f, perms).unwrap();
+        purge_batch(q.path(), "7").unwrap();
+        assert!(!q.path().join("7").exists());
     }
 }
