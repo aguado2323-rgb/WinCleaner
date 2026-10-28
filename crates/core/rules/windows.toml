@@ -39,7 +39,11 @@ id = "chrome-cache"
 name = "Chrome: caché"
 category = "Navegadores"
 description = "Caché de Google Chrome (no toca contraseñas ni cookies)."
-paths = ["%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data"]
+paths = [
+  "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data",
+  "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Code Cache",
+  "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\GPUCache",
+]
 safe = true
 
 [[rule]]
@@ -47,7 +51,11 @@ id = "edge-cache"
 name = "Edge: caché"
 category = "Navegadores"
 description = "Caché de Microsoft Edge (no toca contraseñas ni cookies)."
-paths = ["%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache\\Cache_Data"]
+paths = [
+  "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache\\Cache_Data",
+  "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Code Cache",
+  "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\GPUCache",
+]
 safe = true
 
 [[rule]]
@@ -56,4 +64,137 @@ name = "Firefox: caché"
 category = "Navegadores"
 description = "Caché de Mozilla Firefox."
 paths = ["%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles"]
+safe = false
+
+[[rule]]
+id = "brave-cache"
+name = "Brave: caché"
+category = "Navegadores"
+description = "Caché de Brave (no toca contraseñas ni cookies)."
+paths = [
+  "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Cache\\Cache_Data",
+  "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Code Cache",
+  "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\GPUCache",
+]
+safe = true
+
+[[rule]]
+id = "opera-cache"
+name = "Opera: caché"
+category = "Navegadores"
+description = "Caché de Opera (no toca contraseñas ni cookies)."
+paths = [
+  "%APPDATA%\\Opera Software\\Opera Stable\\Cache\\Cache_Data",
+  "%APPDATA%\\Opera Software\\Opera Stable\\Code Cache",
+  "%APPDATA%\\Opera Software\\Opera Stable\\GPUCache",
+]
+safe = true
+
+[[rule]]
+id = "vivaldi-cache"
+name = "Vivaldi: caché"
+category = "Navegadores"
+description = "Caché de Vivaldi (no toca contraseñas ni cookies)."
+paths = [
+  "%LOCALAPPDATA%\\Vivaldi\\User Data\\Default\\Cache\\Cache_Data",
+  "%LOCALAPPDATA%\\Vivaldi\\User Data\\Default\\Code Cache",
+  "%LOCALAPPDATA%\\Vivaldi\\User Data\\Default\\GPUCache",
+]
+safe = true
+
+[[rule]]
+id = "inet-cache"
+name = "Archivos temporales de Internet"
+category = "Sistema"
+description = "Caché web heredada de Windows (INetCache)."
+paths = ["%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache"]
+safe = true
+
+[[rule]]
+id = "windows-update-cache"
+name = "Descargas de Windows Update"
+category = "Sistema"
+description = "Paquetes ya instalados; Windows los vuelve a descargar si hacen falta (requiere administrador)."
+paths = ["%WINDIR%\\SoftwareDistribution\\Download"]
+safe = true
+
+[[rule]]
+id = "delivery-optimization"
+name = "Optimización de distribución"
+category = "Sistema"
+description = "Caché de actualizaciones compartidas entre equipos (requiere administrador)."
+paths = ["%WINDIR%\\ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization\\Cache"]
+safe = true
+
+[[rule]]
+id = "prefetch"
+name = "Prefetch"
+category = "Sistema"
+description = "Acelera el arranque de apps; al borrarlo la primera apertura de cada una será algo más lenta (requiere administrador)."
+paths = ["%WINDIR%\\Prefetch"]
+safe = false
+
+[[rule]]
+id = "directx-shader-cache"
+name = "Caché de sombreadores de DirectX"
+category = "Juegos y gráficos"
+description = "Se regenera sola; los juegos pueden tardar un poco más la primera vez."
+paths = ["%LOCALAPPDATA%\\D3DSCache"]
+safe = true
+
+[[rule]]
+id = "nvidia-cache"
+name = "Caché de NVIDIA"
+category = "Juegos y gráficos"
+description = "Cachés de sombreadores de DirectX y OpenGL de NVIDIA."
+paths = ["%LOCALAPPDATA%\\NVIDIA\\DXCache", "%LOCALAPPDATA%\\NVIDIA\\GLCache"]
+safe = true
+
+[[rule]]
+id = "discord-cache"
+name = "Discord: caché"
+category = "Aplicaciones"
+description = "Imágenes y datos temporales de Discord; no cierra tu sesión."
+paths = [
+  "%APPDATA%\\discord\\Cache\\Cache_Data",
+  "%APPDATA%\\discord\\Code Cache",
+  "%APPDATA%\\discord\\GPUCache",
+]
+safe = true
+
+[[rule]]
+id = "vscode-cache"
+name = "VS Code: caché"
+category = "Aplicaciones"
+description = "Cachés de Visual Studio Code; no toca ajustes ni extensiones."
+paths = [
+  "%APPDATA%\\Code\\Cache",
+  "%APPDATA%\\Code\\CachedData",
+  "%APPDATA%\\Code\\Code Cache",
+  "%APPDATA%\\Code\\GPUCache",
+]
+safe = true
+
+[[rule]]
+id = "npm-cache"
+name = "npm: caché"
+category = "Desarrollo"
+description = "Paquetes descargados por npm; se vuelven a bajar al instalar."
+paths = ["%LOCALAPPDATA%\\npm-cache"]
+safe = false
+
+[[rule]]
+id = "pip-cache"
+name = "pip: caché"
+category = "Desarrollo"
+description = "Paquetes descargados por pip."
+paths = ["%LOCALAPPDATA%\\pip\\Cache"]
+safe = false
+
+[[rule]]
+id = "nuget-cache"
+name = "NuGet: caché HTTP"
+category = "Desarrollo"
+description = "Caché de consultas de NuGet (.NET)."
+paths = ["%LOCALAPPDATA%\\NuGet\\v3-cache"]
 safe = false
