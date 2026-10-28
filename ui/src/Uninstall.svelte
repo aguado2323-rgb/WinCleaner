@@ -2,7 +2,7 @@
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
-  import { fmt } from './format.js';
+  import { fmt, fmtDay } from './format.js';
 
   let { notify, refreshQuarantine } = $props();
 
@@ -17,10 +17,35 @@
   let picked = $state({});
   let result = $state(null);
   let outcome = $state(null);
+  let icons = $state({});
+  let sortKey = $state('name');
+  let sortAsc = $state(true);
 
-  let shown = $derived(
-    programs.filter((p) => (p.name + ' ' + p.publisher).toLowerCase().includes(query.trim().toLowerCase()))
-  );
+  // Orden por columna; los que no tienen dato (fecha vacía) van siempre al final.
+  const sorters = {
+    name: (p) => p.name.toLowerCase(),
+    installed: (p) => p.install_date,
+    used: (p) => p.last_used,
+    size: (p) => p.size_kb,
+  };
+  function sortBy(key) {
+    if (sortKey === key) sortAsc = !sortAsc;
+    else {
+      sortKey = key;
+      sortAsc = key === 'name';
+    }
+  }
+
+  let shown = $derived.by(() => {
+    const f = sorters[sortKey];
+    const list = programs.filter((p) => (p.name + ' ' + p.publisher).toLowerCase().includes(query.trim().toLowerCase()));
+    return list.sort((a, b) => {
+      const [x, y] = [f(a), f(b)];
+      if (x === '' || x === 0) return y === '' || y === 0 ? 0 : 1;
+      if (y === '' || y === 0) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1);
+    });
+  });
   let chosen = $derived(leftovers.filter((l, i) => picked[i]));
 
   async function load() {
@@ -31,6 +56,19 @@
       notify('No se pudo leer los programas: ' + e);
     }
     loading = false;
+    loadIcons();
+  }
+
+  // Los iconos tardan (PowerShell): se piden por tandas y van apareciendo.
+  async function loadIcons() {
+    const ids = programs.map((p) => p.id).filter((id) => !icons[id]);
+    for (let i = 0; i < ids.length; i += 40) {
+      try {
+        icons = { ...icons, ...(await invoke('programs_icons', { ids: ids.slice(i, i + 40) })) };
+      } catch {
+        /* sin iconos: se muestra la inicial */
+      }
+    }
   }
 
   function ask(p) {
@@ -117,16 +155,38 @@
 {:else if !shown.length}
   <p class="empty">{programs.length ? 'Ningún programa coincide.' : 'No se han encontrado programas instalados.'}</p>
 {:else}
+  <div class="cols label" role="row">
+    <span class="ic"></span>
+    <button class="col nm" class:on={sortKey === 'name'} onclick={() => sortBy('name')}>Programa {sortKey === 'name' ? (sortAsc ? '↑' : '↓') : ''}</button>
+    <button class="col dt" class:on={sortKey === 'installed'} onclick={() => sortBy('installed')}>Instalado {sortKey === 'installed' ? (sortAsc ? '↑' : '↓') : ''}</button>
+    <span class="col dt use">
+      <button class="col" class:on={sortKey === 'used'} onclick={() => sortBy('used')}>Último uso {sortKey === 'used' ? (sortAsc ? '↑' : '↓') : ''}</button>
+      <Help text={H.uninstallDates.text} risk={H.uninstallDates.risk} label="Qué son las fechas" />
+    </span>
+    <button class="col sz" class:on={sortKey === 'size'} onclick={() => sortBy('size')}>Tamaño {sortKey === 'size' ? (sortAsc ? '↑' : '↓') : ''}</button>
+    <span class="act"></span>
+  </div>
   <ul>
     {#each shown as p, i (p.id)}
-      <li style="animation-delay:{Math.min(i, 20) * 18}ms">
+      <li style="animation-delay:{Math.min(i, 20) * 14}ms">
+        <span class="ic">
+          {#if icons[p.id]}
+            <img src="data:image/png;base64,{icons[p.id]}" alt="" width="28" height="28" />
+          {:else}
+            <span class="ph" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase()}</span>
+          {/if}
+        </span>
         <div class="txt">
-          <b>{p.name}</b>
+          <b title={p.name}>{p.name}</b>
           <small>{[p.publisher, p.version].filter(Boolean).join(' · ') || '—'}</small>
         </div>
-        <span class="sz num">{p.size_kb ? fmt(p.size_kb * 1024) : ''}</span>
-        <button class="btn" onclick={() => ask(p)}>Desinstalar</button>
-        <Help text={H.uninstallButton.text} risk={H.uninstallButton.risk} label="Qué hace Desinstalar" />
+        <span class="dt num">{fmtDay(p.install_date)}</span>
+        <span class="dt num">{fmtDay(p.last_used)}</span>
+        <span class="sz num">{p.size_kb ? fmt(p.size_kb * 1024) : '—'}</span>
+        <span class="act">
+          <button class="btn sm" onclick={() => ask(p)}>Desinstalar</button>
+          <Help text={H.uninstallButton.text} risk={H.uninstallButton.risk} label="Qué hace Desinstalar" />
+        </span>
       </li>
     {/each}
   </ul>
@@ -217,11 +277,23 @@
   .bar .num { font-size: 13px; }
   .bar small { color: var(--ink-3); }
   ul { list-style: none; margin: 0; padding: 0; }
-  li { display: flex; align-items: center; gap: 18px; padding: 12px 2px; border-bottom: 1px solid var(--rule); animation: line 0.22s both; }
+  li { display: flex; align-items: center; gap: 16px; padding: 9px 2px; border-bottom: 1px solid var(--rule); animation: line 0.22s both; }
   .txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
   .txt b { font-weight: 600; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   small { color: var(--ink-3); font-size: 12.5px; }
-  .sz { flex: none; width: 70px; text-align: right; font-size: 12.5px; }
+  .cols { display: flex; align-items: center; gap: 16px; padding: 10px 2px 6px; font-size: 10px; }
+  .col { border: 0; background: none; padding: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--ink-3); text-align: left; cursor: pointer; }
+  .col:hover, .col.on { color: var(--ink); }
+  .cols .nm { flex: 1; min-width: 0; }
+  .use { display: flex; align-items: center; gap: 6px; }
+  .ic { flex: none; width: 28px; height: 28px; display: grid; place-items: center; }
+  .ic img { display: block; image-rendering: auto; }
+  .ph { width: 28px; height: 28px; display: grid; place-items: center; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 2px; font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+  .dt { flex: none; width: 112px; white-space: nowrap; font-size: 12.5px; color: var(--ink-2); }
+  .sz { flex: none; width: 74px; text-align: right; font-size: 12.5px; }
+  .cols .sz { text-align: right; }
+  .act { flex: none; width: 134px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  :global(.btn.sm) { padding: 5px 11px; font-size: 11px; }
   .empty { padding: 50px 0; color: var(--ink-2); font-size: 15px; }
 
   :global(.dialog.wide) { width: 520px; max-width: calc(100vw - 40px); }

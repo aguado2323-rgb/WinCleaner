@@ -73,6 +73,10 @@ export const H = {
     risk: 'care',
     text: 'Abre el desinstalador del propio programa, como en «Aplicaciones» de Windows. Después WinCleaner busca restos y te los enseña para que elijas. La desinstalación del programa en sí no se puede deshacer (habría que reinstalarlo).',
   },
+  uninstallDates: {
+    risk: 'safe',
+    text: '«Instalado» lo declara el propio programa. «Último uso» es aproximado: sale de los registros que Windows guarda de lo que abres desde el menú Inicio o el Explorador. Un guion (—) significa que no hay datos, no que no lo uses.',
+  },
   uninstallPoint: {
     risk: 'safe',
     text: 'Antes de empezar, Windows guarda una foto de su configuración para poder volver a ella desde «Restaurar sistema». Pide ejecutar como administrador y Windows solo permite uno cada 24 horas. No restaura los archivos personales.',

@@ -24,7 +24,7 @@ pub use restore::{
 };
 pub use debloat::{debloat_remove, debloat_scan, Installed, RemoveResult, Risk};
 pub use uninstall::{
-    find_leftovers, list_programs, remove_leftovers, restore_registry, uninstall_program, Leftover,
+    find_leftovers, list_programs, program_icons, remove_leftovers, restore_registry, uninstall_program, Leftover,
     LeftoverKind, LeftoverOutcome, Program, UninstallOutcome,
 };
 pub use tweaks::{tweak_set, tweaks_list, TweakInfo};
