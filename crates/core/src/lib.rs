@@ -2,6 +2,7 @@
 //! Sin dependencias de UI para poder probarlo en cualquier plataforma.
 
 mod clean;
+mod debloat;
 mod disk;
 mod restore;
 mod startup;
@@ -18,3 +19,4 @@ pub use restore::{
     create_restore_point, is_admin, list_restore_points, open_system_restore, relaunch_as_admin, Reason,
     RestorePoint,
 };
+pub use debloat::{debloat_remove, debloat_scan, Installed, RemoveResult, Risk};

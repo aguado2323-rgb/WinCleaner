@@ -4,10 +4,10 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, create_restore_point, drives, is_admin, list_batches,
+    builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, is_admin, list_batches,
     list_restore_points, open_system_restore, purge_batch, relaunch_as_admin, restore_batch,
     scan_dir, scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
-    Reason, RestorePoint, Rule, ScanResult, StartupItem,
+    Installed, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem,
 };
 
 #[derive(Serialize)]
@@ -175,6 +175,18 @@ fn restore_open() -> Result<(), String> {
     open_system_restore()
 }
 
+/// Apps del catálogo de debloat que están instaladas. PowerShell tarda: hilo aparte.
+#[tauri::command]
+async fn debloat_list() -> Result<Vec<Installed>, String> {
+    tauri::async_runtime::spawn_blocking(debloat_scan).await.map_err(|e| e.to_string())?
+}
+
+/// Quita apps por id de catálogo (el nombre del paquete nunca viene de la interfaz).
+#[tauri::command]
+async fn debloat_apply(ids: Vec<String>) -> Result<Vec<RemoveResult>, String> {
+    tauri::async_runtime::spawn_blocking(move || debloat_remove(&ids)).await.map_err(|e| e.to_string())
+}
+
 /// Lanza otra instancia con permisos de administrador y cierra esta.
 #[tauri::command]
 fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
@@ -185,7 +197,7 @@ fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
