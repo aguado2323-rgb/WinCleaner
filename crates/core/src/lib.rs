@@ -4,13 +4,14 @@
 mod clean;
 mod debloat;
 mod disk;
+mod protect;
 mod restore;
 mod startup;
 mod uninstall;
 mod rules;
 
 pub use clean::{
-    clean_rule, list_batches, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
+    clean_rule, list_batches, quarantine_items, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
     ScanResult,
 };
 pub use rules::{builtin_rules, expand_env, Rule};
@@ -25,3 +26,4 @@ pub use uninstall::{
     find_leftovers, list_programs, program_icons, remove_leftovers, restore_registry, uninstall_program, Leftover,
     LeftoverKind, LeftoverOutcome, Program, UninstallOutcome,
 };
+pub use protect::{is_protected, Protected};
