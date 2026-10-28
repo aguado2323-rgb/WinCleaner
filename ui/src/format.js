@@ -17,3 +17,10 @@ export function fmt(bytes) {
 export function fmtDate(batch) {
   return new Date(Number(batch) * 1000).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
 }
+
+/** `2026-10-27` → `27 oct 2026`; vacío → `—`. */
+export function fmtDay(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d) ? '—' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
+}
