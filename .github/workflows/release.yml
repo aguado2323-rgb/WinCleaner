@@ -1,0 +1,77 @@
+name: Release
+# Se ejecuta al publicar una versión en GitHub (Releases → Draft a new release → Publish).
+# Compila el exe portable, lo firma si hay SignPath configurado y lo adjunta con su SHA256.
+on:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  portable:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+        working-directory: ui
+      - run: npm run build
+        working-directory: ui
+      - run: cargo test -p wincleaner-core
+      - name: Avisar si la versión de la etiqueta no coincide con la del programa
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version\s*=\s*"(.+)"').Matches[0].Groups[1].Value
+          if ($env:TAG.TrimStart('v') -ne $v) { Write-Output "::warning::La etiqueta $env:TAG no coincide con la versión del programa ($v). El exe seguirá mostrando $v." }
+      - name: Compilar ejecutable portable
+        run: npx --yes @tauri-apps/cli@2 build --no-bundle
+      - name: Preparar archivo sin firmar
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist-release | Out-Null
+          Copy-Item target/release/wincleaner.exe dist-release/WinCleaner.exe
+      - name: Subir sin firmar (entrada para la firma)
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinCleaner-sin-firmar
+          path: dist-release/WinCleaner.exe
+      # Firma gratuita para código abierto (SignPath Foundation). Solo se ejecuta si se han
+      # configurado las variables y el secreto descritos en docs/RELEASING.md.
+      - name: Firmar con SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+      - name: Elegir el archivo final
+        shell: pwsh
+        run: |
+          $src = if (Test-Path signed/WinCleaner.exe) { 'signed/WinCleaner.exe' } else { 'dist-release/WinCleaner.exe' }
+          $name = "WinCleaner-$env:TAG-portable.exe"
+          Copy-Item $src $name
+          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Set-Content -Encoding ascii SHA256SUMS.txt
+          $signed = if ($src -like 'signed*') { 'firmado' } else { 'sin firmar' }
+          "### Archivo`n- ``$name`` ($signed)`n- SHA256: ``$hash``" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          Add-Content $env:GITHUB_ENV "ASSET=$name`nHASH=$hash`nSIGNED=$signed"
+      - name: Adjuntar a la versión
+        shell: pwsh
+        run: |
+          gh release upload $env:TAG $env:ASSET SHA256SUMS.txt --clobber
+          $body = gh release view $env:TAG --json body --jq .body
+          $extra = "`n`n---`n**Descarga:** ``$env:ASSET`` ($env:SIGNED)`n**SHA256:** ``$env:HASH```n`nPara comprobarlo en PowerShell: ``(Get-FileHash .\$env:ASSET).Hash`` debe dar el mismo valor."
+          gh release edit $env:TAG --notes "$body$extra"

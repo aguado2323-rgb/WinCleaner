@@ -16,7 +16,7 @@ npm install --prefix ui
 cargo test -p wincleaner-core     # funciona en cualquier SO
 cargo tauri dev                   # requiere Windows + WebView2 (cargo install tauri-cli)
 ```
-El ejecutable portable (sin instalador) sale como artefacto del CI.
+El ejecutable portable (sin instalador) sale como artefacto del CI y, en cada versión, se adjunta a [Releases](../../releases) con su SHA256 para comprobar la descarga. Cómo publicar una versión y firmarla: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Skills de Claude Code
 `.claude/settings.json` activa architecture, product-discovery, quality-assurance e implementation suites de
