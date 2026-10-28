@@ -4,8 +4,8 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, list_batches, purge_batch, restore_batch, scan_rule, BatchInfo,
-    CleanReport, Mode, Rule, ScanResult,
+    builtin_rules, clean_rule, drives, list_batches, purge_batch, restore_batch, scan_dir,
+    scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode, Rule, ScanResult, StartupItem,
 };
 
 #[derive(Serialize)]
@@ -92,9 +92,63 @@ fn open_quarantine() -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct Root {
+    label: String,
+    path: String,
+}
+
+#[tauri::command]
+fn disk_roots() -> Vec<Root> {
+    let mut roots = Vec::new();
+    if let Some(home) = std::env::var_os("USERPROFILE") {
+        roots.push(Root { label: "Tu carpeta".into(), path: PathBuf::from(home).display().to_string() });
+    }
+    for d in drives() {
+        roots.push(Root { label: format!("Disco {}", &d[..2]), path: d });
+    }
+    roots
+}
+
+/// Solo lectura. Recorre el árbol en un hilo aparte para no bloquear la ventana.
+#[tauri::command]
+async fn analyze(path: String) -> Result<DirReport, String> {
+    let p = PathBuf::from(&path);
+    if !p.is_dir() {
+        return Err("la ruta no es una carpeta".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || scan_dir(&p, 25))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reveal(path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err("no existe".into());
+    }
+    #[cfg(windows)]
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", p.display()))
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn startup_items() -> Vec<StartupItem> {
+    startup_list()
+}
+
+#[tauri::command]
+fn startup_set(id: String, enabled: bool) -> Result<(), String> {
+    startup_set_enabled(&id, enabled)
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

@@ -1,8 +1,16 @@
 <script>
   import { invoke } from '@tauri-apps/api/core';
-  import Icon from './Icon.svelte';
   import Clean from './Clean.svelte';
   import Quarantine from './Quarantine.svelte';
+  import Space from './Space.svelte';
+  import Startup from './Startup.svelte';
+
+  const sections = [
+    ['clean', 'Limpieza'],
+    ['quarantine', 'Cuarentena'],
+    ['space', 'Espacio'],
+    ['startup', 'Arranque'],
+  ];
 
   let view = $state('clean');
   let q = $state({ path: '', batches: [] });
@@ -23,36 +31,40 @@
     toastTimer = setTimeout(() => (toast = null), action ? 9000 : 4500);
   }
 
+  const go = (v) => {
+    view = v;
+    if (v === 'quarantine') refreshQuarantine();
+  };
+
   refreshQuarantine();
 </script>
 
 <div class="shell">
   <aside>
-    <div class="brand">
-      <span class="mark"><Icon name="check" size={16} /></span>
-      <span>WinCleaner</span>
-    </div>
+    <div class="brand">Win<br />Cleaner</div>
 
-    <nav>
-      <button class:active={view === 'clean'} onclick={() => (view = 'clean')}>
-        <Icon name="broom" /> Limpieza
-      </button>
-      <button class:active={view === 'quarantine'} onclick={() => { view = 'quarantine'; refreshQuarantine(); }}>
-        <Icon name="shield" /> Cuarentena
-        {#if q.batches.length}<span class="badge">{q.batches.length}</span>{/if}
-      </button>
-      <button disabled><Icon name="disk" /> Espacio <span class="soon">Pronto</span></button>
-      <button disabled><Icon name="power" /> Arranque <span class="soon">Pronto</span></button>
+    <nav aria-label="Secciones">
+      {#each sections as [id, name], i (id)}
+        <button class:active={view === id} onclick={() => go(id)}>
+          <span class="n">{String(i + 1).padStart(2, '0')}</span>
+          <span class="t">{name}</span>
+          {#if id === 'quarantine' && q.batches.length}<span class="c">{q.batches.length}</span>{/if}
+        </button>
+      {/each}
     </nav>
 
-    <p class="promise"><Icon name="lock" size={14} /> Sin anuncios · sin telemetría<br />Código abierto (MIT)</p>
+    <p class="promise label">Sin anuncios<br />Sin telemetría<br />Código abierto · MIT</p>
   </aside>
 
   <main>
     {#key view}
       <div class="page">
         {#if view === 'clean'}
-          <Clean {notify} {refreshQuarantine} openQuarantine={() => { view = 'quarantine'; refreshQuarantine(); }} />
+          <Clean {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
+        {:else if view === 'space'}
+          <Space {notify} />
+        {:else if view === 'startup'}
+          <Startup {notify} />
         {:else}
           <Quarantine {q} {notify} {refreshQuarantine} />
         {/if}
@@ -69,24 +81,22 @@
 </div>
 
 <style>
-  .shell { display: grid; grid-template-columns: 232px 1fr; height: 100vh; background:
-      radial-gradient(900px 500px at 85% -10%, var(--glow), transparent 60%), var(--canvas); }
-  aside { display: flex; flex-direction: column; padding: 22px 14px; border-right: 1px solid var(--hairline); background: color-mix(in srgb, var(--surface) 70%, transparent); }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: 0.2px; padding: 0 10px 22px; }
-  .mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: #06121a; background: linear-gradient(135deg, var(--blue), var(--green)); }
-  nav { display: flex; flex-direction: column; gap: 2px; }
-  nav button { display: flex; align-items: center; gap: 11px; border: 0; background: none; padding: 9px 10px; border-radius: 9px; color: var(--mute); cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s; }
-  nav button:hover:not(:disabled) { background: var(--hairline); color: var(--ink); }
-  nav button.active { background: var(--hairline); color: var(--ink); box-shadow: inset 2px 0 0 var(--blue); }
-  nav button:disabled { opacity: 0.5; cursor: default; }
-  .badge { margin-left: auto; font-size: 11px; font-weight: 600; background: var(--blue); color: #06121a; border-radius: 99px; padding: 1px 7px; }
-  .soon { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ash); }
-  .promise { margin: auto 10px 0; font-size: 11.5px; line-height: 1.6; color: var(--ash); }
-  .promise :global(svg) { vertical-align: -2px; margin-right: 4px; }
+  .shell { display: grid; grid-template-columns: 188px 1fr; height: 100vh; }
+  aside { display: flex; flex-direction: column; padding: 28px 0 24px 28px; border-right: 1px solid var(--rule); }
+  .brand { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 0.95; letter-spacing: -0.04em; margin-bottom: 44px; }
+  nav { display: flex; flex-direction: column; }
+  nav button { display: flex; align-items: baseline; gap: 12px; border: 0; background: none; padding: 9px 0; text-align: left; color: var(--ink-3); transition: color 0.12s; }
+  nav button:hover { color: var(--ink); }
+  nav button .n { font-family: var(--mono); font-size: 11px; width: 18px; }
+  nav button .t { font-size: 15px; }
+  nav button.active { color: var(--ink); }
+  nav button.active .n { color: var(--accent); }
+  nav button.active .t { font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+  nav button .c { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+  .promise { margin: auto 0 0; line-height: 1.9; font-size: 10px; }
   main { overflow-y: auto; }
-  .page { max-width: 760px; margin: 0 auto; padding: 36px 36px 60px; animation: enter 0.35s cubic-bezier(0.2, 0.7, 0.2, 1); }
-  @keyframes enter { from { opacity: 0; transform: translateY(8px); } }
-  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; background: var(--elevated); border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 11px 14px 11px 18px; font-size: 13.5px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); animation: pop 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-  .toast button { border: 0; background: var(--cta-bg); color: var(--cta-fg); border-radius: 8px; padding: 5px 12px; font-weight: 600; cursor: pointer; }
-  @keyframes pop { from { opacity: 0; transform: translate(-50%, 10px) scale(0.96); } }
+  .page { max-width: 780px; padding: 32px 40px 70px; animation: fade 0.18s; }
+  .toast { position: fixed; bottom: 20px; left: 216px; display: flex; align-items: center; gap: 18px; background: var(--ink); color: var(--paper); padding: 11px 14px 11px 16px; border-radius: 2px; font-size: 13px; animation: drop 0.18s; }
+  .toast button { border: 1px solid var(--paper); background: none; color: var(--paper); padding: 3px 10px; border-radius: 2px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .toast button:hover { background: var(--paper); color: var(--ink); }
 </style>

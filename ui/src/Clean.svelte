@@ -2,8 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { Tween } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
-  import Icon from './Icon.svelte';
-  import { fmt, accents } from './format.js';
+  import { size, fmt } from './format.js';
 
   let { notify, refreshQuarantine, openQuarantine } = $props();
 
@@ -14,24 +13,22 @@
   let confirming = $state(false);
   let freed = $state(0);
 
-  const R = 92;
-  const C = 2 * Math.PI * R;
-  const counter = new Tween(0, { duration: 700, easing: cubicOut });
-  const arc = new Tween(0, { duration: 800, easing: cubicOut });
+  const counter = new Tween(0, { duration: 600, easing: cubicOut });
 
-  let allBytes = $derived(Object.values(results).reduce((a, r) => a + r.bytes, 0));
   let total = $derived(rules.reduce((a, r) => a + (selected[r.id] ? results[r.id]?.bytes ?? 0 : 0), 0));
   let ids = $derived(rules.filter((r) => selected[r.id]).map((r) => r.id));
   let maxBytes = $derived(Math.max(1, ...Object.values(results).map((r) => r.bytes)));
-  let groups = $derived(
-    Object.entries(
-      rules.reduce((g, r) => ((g[r.category] ??= []).push(r), g), {})
-    )
+  let groups = $derived(Object.entries(rules.reduce((g, r) => ((g[r.category] ??= []).push(r), g), {})));
+  let tape = $derived(
+    rules
+      .filter((r) => selected[r.id] && results[r.id]?.bytes)
+      .map((r) => ({ id: r.id, name: r.name, bytes: results[r.id].bytes }))
+      .sort((a, b) => b.bytes - a.bytes)
   );
+  let shown = $derived(size(counter.current));
 
   $effect(() => {
     counter.target = phase === 'done' ? freed : total;
-    arc.target = phase === 'done' ? 1 : allBytes ? total / allBytes : 0;
   });
 
   async function scan() {
@@ -83,76 +80,71 @@
     await scan();
   }
 
+  const setAll = (list, on) => list.forEach((r) => (selected[r.id] = on));
+
   init();
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
 
-<header>
-  <h1>Limpieza</h1>
-  <p>Elige qué quieres liberar. Nada se borra: todo pasa antes por la cuarentena.</p>
-</header>
+<p class="label">Limpieza</p>
 
 <section class="hero">
-  <div class="ring" class:spin={phase === 'scanning' || phase === 'cleaning'}>
-    <svg viewBox="0 0 220 220">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="var(--blue)" />
-          <stop offset="1" stop-color="var(--green)" />
-        </linearGradient>
-      </defs>
-      <circle cx="110" cy="110" r={R} class="track" />
-      {#if phase === 'scanning' || phase === 'cleaning'}
-        <circle cx="110" cy="110" r={R} class="arc" stroke-dasharray="{C * 0.22} {C}" />
-      {:else}
-        <circle cx="110" cy="110" r={R} class="arc" stroke-dasharray="{C * arc.current} {C}" />
-      {/if}
-    </svg>
-    <div class="center">
-      {#if phase === 'scanning'}
-        <span class="label">Analizando…</span>
-      {:else if phase === 'cleaning'}
-        <span class="label">Moviendo a cuarentena…</span>
-      {:else if phase === 'done'}
-        <span class="done"><Icon name="check" size={22} /></span>
-        <strong>{fmt(counter.current)}</strong>
-        <span class="label">liberados</span>
-      {:else}
-        <strong>{fmt(counter.current)}</strong>
-        <span class="label">{total ? 'se pueden liberar' : 'todo limpio'}</span>
-      {/if}
-    </div>
+  <div class="figure" class:busy={phase === 'scanning' || phase === 'cleaning'}>
+    {#if phase === 'scanning'}
+      <span class="big dots" aria-label="Analizando">···</span>
+    {:else}
+      <span class="big num">{shown.n}</span><span class="unit num">{shown.u}</span>
+    {/if}
+  </div>
+  <p class="cap">
+    {#if phase === 'scanning'}Analizando tu equipo…
+    {:else if phase === 'cleaning'}Moviendo a la cuarentena…
+    {:else if phase === 'done'}liberados · están en la cuarentena por si cambias de idea
+    {:else if total}recuperables · {ids.length} {ids.length === 1 ? 'categoría' : 'categorías'} seleccionadas
+    {:else}no hay nada seleccionado que limpiar{/if}
+  </p>
+
+  <div class="tape" aria-hidden="true">
+    {#each tape as seg, i (seg.id)}
+      <i class:lead={i === 0} style="flex:{seg.bytes}" title="{seg.name} · {fmt(seg.bytes)}"></i>
+    {/each}
   </div>
 
-  <div class="actions">
+  <div class="act">
     {#if phase === 'done'}
-      <button class="cta" onclick={scan}>Volver a analizar</button>
-      <button class="ghost" onclick={openQuarantine}><Icon name="shield" size={16} /> Ver cuarentena</button>
+      <button class="btn primary" onclick={scan}>Analizar de nuevo</button>
+      <button class="link" onclick={openQuarantine}>Ver cuarentena →</button>
     {:else}
-      <button class="cta" disabled={phase !== 'ready' || !total} onclick={() => (confirming = true)}>
+      <button class="btn primary" disabled={phase !== 'ready' || !total} onclick={() => (confirming = true)}>
         {total ? `Limpiar ${fmt(total)}` : 'Nada que limpiar'}
       </button>
-      <button class="ghost" disabled={phase !== 'ready'} onclick={scan}>Analizar de nuevo</button>
+      <button class="link" disabled={phase !== 'ready'} onclick={scan}>Analizar de nuevo</button>
     {/if}
   </div>
 </section>
 
-{#each groups as [category, list], gi (category)}
-  <h2 style="--c:{accents[category] ?? 'var(--blue)'}"><i></i>{category}</h2>
+{#each groups as [category, list] (category)}
+  <div class="group">
+    <h2 class="label">{category}</h2>
+    <span class="sel">
+      <button class="link" onclick={() => setAll(list, true)}>Todo</button>
+      <button class="link" onclick={() => setAll(list, false)}>Nada</button>
+    </span>
+  </div>
   <ul>
     {#each list as r, i (r.id)}
-      {@const size = results[r.id]?.bytes ?? 0}
-      <li style="--c:{accents[category] ?? 'var(--blue)'}; animation-delay:{(gi * 4 + i) * 40}ms">
+      {@const bytes = results[r.id]?.bytes ?? 0}
+      <li style="animation-delay:{i * 28}ms">
         <label>
           <input type="checkbox" bind:checked={selected[r.id]} disabled={phase === 'cleaning'} />
-          <span class="sw"></span>
+          <span class="box" aria-hidden="true"></span>
           <span class="txt">
             <b>{r.name}</b>
             <small>{r.description}</small>
-            <span class="bar"><i style="width:{Math.max(size ? 3 : 0, (size / maxBytes) * 100)}%"></i></span>
           </span>
-          <span class="size">{phase === 'scanning' ? '…' : fmt(size)}</span>
+          <span class="mini" aria-hidden="true"><i style="width:{(bytes / maxBytes) * 100}%"></i></span>
+          <span class="sz num">{phase === 'scanning' ? '—' : fmt(bytes)}</span>
         </label>
       </li>
     {/each}
@@ -164,69 +156,47 @@
   <div class="overlay" role="presentation" onclick={() => (confirming = false)}>
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
     <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-      <span class="shield"><Icon name="shield" size={22} /></span>
       <h3>¿Limpiar {fmt(total)}?</h3>
-      <p>Los archivos no se borran: se mueven a la cuarentena y puedes devolverlos a su sitio cuando quieras.</p>
+      <p>Los archivos no se borran: pasan a la cuarentena y puedes devolverlos a su sitio cuando quieras.</p>
       <div class="row">
-        <button class="ghost" onclick={() => (confirming = false)}>Cancelar</button>
-        <button class="cta small" onclick={clean}>Limpiar</button>
+        <button class="btn" onclick={() => (confirming = false)}>Cancelar</button>
+        <button class="btn primary" onclick={clean}>Limpiar</button>
       </div>
     </div>
   </div>
 {/if}
 
 <style>
-  header h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.3px; }
-  header p { margin: 6px 0 0; color: var(--mute); font-size: 14px; }
+  .hero { padding: 26px 0 30px; }
+  .figure { display: flex; align-items: baseline; gap: 10px; line-height: 0.9; }
+  .big { font-size: 112px; font-weight: 500; letter-spacing: -0.06em; }
+  .unit { font-size: 28px; color: var(--accent); font-weight: 600; }
+  .dots { color: var(--ink-3); animation: blink 1s steps(3) infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .cap { margin: 14px 0 22px; color: var(--ink-2); }
 
-  .hero { display: flex; align-items: center; gap: 40px; margin: 28px 0 34px; padding: 26px 30px; border: 1px solid var(--hairline); border-radius: 22px; background: linear-gradient(160deg, var(--elevated), var(--surface)); }
-  .ring { position: relative; width: 190px; height: 190px; flex: none; }
-  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-  .track { fill: none; stroke: var(--hairline); stroke-width: 10; }
-  .arc { fill: none; stroke: url(#g); stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 8px var(--glow)); }
-  .ring.spin svg { animation: spin 1.1s linear infinite; }
-  @keyframes spin { to { transform: rotate(270deg); } }
-  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px; padding: 0 22px; }
-  .center strong { font-size: 32px; font-weight: 600; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; }
-  .label { font-size: 12.5px; color: var(--mute); }
-  .done { color: var(--green); display: grid; margin-bottom: 4px; }
-  .actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .tape { display: flex; gap: 2px; height: 10px; margin-bottom: 28px; background: var(--paper-2); }
+  .tape i { display: block; background: var(--ink); opacity: 0.85; min-width: 2px; transition: flex 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .tape i:nth-child(even) { opacity: 0.5; }
+  .tape i.lead { background: var(--accent); opacity: 1; }
+  .act { display: flex; align-items: center; gap: 26px; }
 
-  .cta { border: 0; border-radius: 99px; padding: 12px 26px; font-weight: 600; font-size: 15px; background: var(--cta-bg); color: var(--cta-fg); cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
-  .cta:hover:not(:disabled) { transform: translateY(-1px); }
-  .cta:active:not(:disabled) { transform: scale(0.97); }
-  .cta:disabled { opacity: 0.35; cursor: default; }
-  .cta.small { padding: 9px 20px; font-size: 14px; }
-  .ghost { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--hairline-strong); background: none; border-radius: 99px; padding: 9px 18px; color: var(--body); cursor: pointer; font-size: 13.5px; transition: background 0.15s; }
-  .ghost:hover:not(:disabled) { background: var(--hairline); }
-  .ghost:disabled { opacity: 0.4; cursor: default; }
-
-  h2 { display: flex; align-items: center; gap: 9px; margin: 26px 0 10px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px; color: var(--mute); }
-  h2 i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  li { animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-  label { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-  label:hover { border-color: var(--hairline-strong); background: var(--elevated); }
+  .group { display: flex; align-items: baseline; justify-content: space-between; margin: 30px 0 4px; padding-bottom: 8px; border-bottom: 1px solid var(--ink); }
+  .group h2 { margin: 0; color: var(--ink); }
+  .sel { display: flex; gap: 14px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { animation: line 0.25s both; border-bottom: 1px solid var(--rule); }
+  label { display: flex; align-items: center; gap: 16px; padding: 13px 2px; cursor: pointer; transition: background 0.1s; }
+  label:hover { background: var(--paper-2); }
   input { position: absolute; opacity: 0; pointer-events: none; }
-  .sw { flex: none; width: 36px; height: 21px; border-radius: 99px; background: var(--hairline-strong); position: relative; transition: background 0.2s; }
-  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1); }
-  input:checked + .sw { background: var(--c); }
-  input:checked + .sw::after { transform: translateX(15px); }
-  input:focus-visible + .sw { outline: 2px solid var(--c); outline-offset: 2px; }
-  .txt { flex: 1; display: grid; gap: 2px; min-width: 0; }
-  .txt b { font-weight: 500; font-size: 14.5px; }
-  .txt small { color: var(--mute); font-size: 12.5px; }
-  .bar { height: 3px; border-radius: 3px; background: var(--hairline); margin-top: 7px; overflow: hidden; }
-  .bar i { display: block; height: 100%; background: var(--c); border-radius: 3px; transition: width 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
-  .size { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--body); }
-
-  .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(6px); display: grid; place-items: center; animation: fade 0.2s; z-index: 10; }
-  @keyframes fade { from { opacity: 0; } }
-  .dialog { width: 380px; background: var(--elevated); border: 1px solid var(--hairline-strong); border-radius: 20px; padding: 26px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); animation: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-  @keyframes pop { from { opacity: 0; transform: scale(0.94); } }
-  .shield { display: inline-grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; color: var(--blue); background: var(--glow); }
-  .dialog h3 { margin: 14px 0 6px; font-size: 19px; font-weight: 600; }
-  .dialog p { margin: 0 0 22px; color: var(--mute); font-size: 14px; line-height: 1.55; }
-  .row { display: flex; justify-content: flex-end; gap: 10px; }
+  .box { flex: none; position: relative; width: 16px; height: 16px; border: 1.5px solid var(--ink); border-radius: 2px; }
+  input:checked + .box { background: var(--accent); border-color: var(--ink); }
+  input:checked + .box::after { content: ''; position: absolute; left: 4px; top: 0; width: 4px; height: 9px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: rotate(40deg); }
+  input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .txt { flex: 1; display: grid; gap: 1px; min-width: 0; }
+  .txt b { font-weight: 600; font-size: 14.5px; }
+  .txt small { color: var(--ink-3); font-size: 12.5px; }
+  .mini { flex: none; width: 56px; height: 3px; background: var(--paper-2); }
+  .mini i { display: block; height: 100%; background: var(--ink); transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .sz { flex: none; width: 76px; text-align: right; font-size: 13px; }
 </style>

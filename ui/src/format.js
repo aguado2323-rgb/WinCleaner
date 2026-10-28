@@ -1,19 +1,19 @@
-export function fmt(n) {
-  if (!n) return '0 MB';
-  if (n >= 1e9) return (n / 1e9).toFixed(2) + ' GB';
-  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + ' MB';
-  if (n >= 1e3) return Math.round(n / 1e3) + ' KB';
-  return n + ' B';
+const nf = (d) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/** Tamaño legible: { n: '3,24', u: 'GB' }. */
+export function size(bytes) {
+  if (!bytes) return { n: '0', u: 'MB' };
+  if (bytes >= 1e9) return { n: nf(2).format(bytes / 1e9), u: 'GB' };
+  if (bytes >= 1e6) return { n: nf(bytes >= 1e8 ? 0 : 1).format(bytes / 1e6), u: 'MB' };
+  if (bytes >= 1e3) return { n: nf(0).format(bytes / 1e3), u: 'KB' };
+  return { n: String(bytes), u: 'B' };
+}
+
+export function fmt(bytes) {
+  const { n, u } = size(bytes);
+  return `${n} ${u}`;
 }
 
 export function fmtDate(batch) {
   return new Date(Number(batch) * 1000).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
 }
-
-export const accents = {
-  Sistema: 'var(--blue)',
-  Navegadores: 'var(--yellow)',
-  'Juegos y gráficos': 'var(--green)',
-  Aplicaciones: 'var(--violet)',
-  Desarrollo: 'var(--ash)',
-};

@@ -1,51 +1,71 @@
+/* WinCleaner — papel y tinta.
+   Una sola tinta de acento, esquinas casi rectas, números en monoespaciada y
+   cero degradados: la interfaz se comporta como un documento bien impreso. */
 :root {
-  color-scheme: dark;
-  --canvas: #07080a;
-  --surface: #0d0d0d;
-  --elevated: #121314;
-  --hairline: rgba(255, 255, 255, 0.08);
-  --hairline-strong: rgba(255, 255, 255, 0.16);
-  --ink: #f4f4f6;
-  --body: #cdcdcd;
-  --mute: #9c9c9d;
-  --ash: #6a6b6c;
-  --blue: #57c1ff;
-  --green: #59d499;
-  --yellow: #ffc533;
-  --red: #ff6161;
-  --violet: #b794ff;
-  --cta-bg: #ffffff;
-  --cta-fg: #08090a;
-  --glow: rgba(87, 193, 255, 0.14);
-  font-family: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-  font-feature-settings: 'calt', 'kern', 'liga', 'ss03';
+  color-scheme: light;
+  --paper: #f3f1ea;
+  --paper-2: #eae7dc;
+  --ink: #151512;
+  --ink-2: #57554d;
+  --ink-3: #8d8b80;
+  --rule: #d5d1c3;
+  --accent: #ff4d00;
+  --on-accent: #151512;
+  --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Cascadia Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
+  font-family: var(--font);
 }
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    color-scheme: light;
-    --canvas: #f5f5f7;
-    --surface: #ffffff;
-    --elevated: #ffffff;
-    --hairline: rgba(0, 0, 0, 0.08);
-    --hairline-strong: rgba(0, 0, 0, 0.18);
-    --ink: #0b0c0e;
-    --body: #3a3b3d;
-    --mute: #6b6c70;
-    --ash: #9a9ba0;
-    --blue: #0a84d6;
-    --green: #17a672;
-    --yellow: #c78a00;
-    --red: #e0383e;
-    --violet: #7c4dff;
-    --cta-bg: #0b0c0e;
-    --cta-fg: #ffffff;
-    --glow: rgba(10, 132, 214, 0.1);
+    color-scheme: dark;
+    --paper: #121210;
+    --paper-2: #1b1b18;
+    --ink: #eeebe0;
+    --ink-2: #aaa79a;
+    --ink-3: #706e63;
+    --rule: #2c2b26;
+    --accent: #ff6a2b;
   }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; background: var(--canvas); color: var(--ink); overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none; }
-button { font: inherit; color: inherit; }
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 10px; border: 3px solid var(--canvas); }
+body { margin: 0; background: var(--paper); color: var(--ink); overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none; font-size: 14px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: var(--accent); color: var(--on-accent); }
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-thumb { background: var(--rule); border: 3px solid var(--paper); }
+
+/* Piezas compartidas */
+.label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.h1 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }
+.lede { margin: 10px 0 0; color: var(--ink-2); line-height: 1.55; max-width: 520px; }
+
+.btn { border: 1px solid var(--ink); background: none; padding: 9px 16px; border-radius: 2px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; transition: background 0.12s, color 0.12s, transform 0.12s, box-shadow 0.12s; }
+.btn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 13px 22px; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.btn.primary:active:not(:disabled) { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--ink); }
+.btn.danger:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.link { border: 0; background: none; padding: 2px 0; font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
+.link:hover:not(:disabled) { color: var(--ink); border-color: var(--ink); }
+.link:disabled { opacity: 0.35; cursor: default; }
+
+.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--rule); }
+.tabs button { border: 0; background: none; padding: 8px 0; margin-bottom: -1px; border-bottom: 2px solid transparent; font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: var(--ink); border-color: var(--accent); }
+
+.overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--paper) 78%, transparent); display: grid; place-items: center; z-index: 10; animation: fade 0.15s; }
+.dialog { width: 400px; background: var(--paper); border: 1px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 26px; animation: drop 0.18s; }
+.dialog h3 { margin: 0 0 8px; font-family: var(--display); font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.dialog p { margin: 0 0 24px; color: var(--ink-2); line-height: 1.55; }
+.dialog .row { display: flex; justify-content: flex-end; gap: 10px; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes drop { from { opacity: 0; transform: translateY(6px); } }
+@keyframes line { from { opacity: 0; transform: translateX(-6px); } }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
