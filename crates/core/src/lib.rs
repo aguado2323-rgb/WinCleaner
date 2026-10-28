@@ -7,6 +7,7 @@ mod disk;
 mod duplicates;
 mod power;
 mod protect;
+mod recycle;
 mod restore;
 mod services;
 mod startup;
@@ -45,3 +46,4 @@ pub use schedule::{
 };
 pub use updates::{update_apply, updates_list, Update};
 pub use power::{power_add_ultimate, power_plans, power_set, Plan};
+pub use recycle::{recycle_empty, recycle_info, RecycleInfo};

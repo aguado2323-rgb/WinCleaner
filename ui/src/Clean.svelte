@@ -82,6 +82,33 @@
     await scan();
   }
 
+  let bin = $state(null);
+  let binConfirm = $state(false);
+  let binBusy = $state(false);
+
+  async function loadBin() {
+    try {
+      bin = await invoke('recycle_state');
+    } catch {
+      bin = null;
+    }
+  }
+
+  async function emptyBin() {
+    binBusy = true;
+    binConfirm = false;
+    try {
+      await invoke('recycle_clear');
+      notify('Papelera vaciada.');
+    } catch (e) {
+      notify('No se pudo vaciar la Papelera: ' + e);
+    }
+    await loadBin();
+    binBusy = false;
+  }
+
+  loadBin();
+
   const setAll = (list, on) => list.forEach((r) => (selected[r.id] = on));
 
   init();
@@ -172,7 +199,27 @@
   </div>
 {/if}
 
+<section class="bin">
+  <div class="binTxt">
+    <b>Papelera de reciclaje</b>
+    <small>{bin ? (bin.items ? `${bin.items} elementos · ${fmt(bin.bytes)}` : 'Está vacía') : 'Comprobando…'} · se vacía de verdad, sin pasar por la cuarentena</small>
+  </div>
+  <Help text={H.recycle.text} risk={H.recycle.risk} label="Qué hace Vaciar la Papelera" />
+  {#if binConfirm}
+    <span class="binAsk">¿Seguro?</span>
+    <button class="btn danger" disabled={binBusy} onclick={emptyBin}>Sí, vaciar</button>
+    <button class="link" onclick={() => (binConfirm = false)}>Cancelar</button>
+  {:else}
+    <button class="btn" disabled={binBusy || !bin?.items} onclick={() => (binConfirm = true)}>Vaciar Papelera</button>
+  {/if}
+</section>
+
 <style>
+  .bin { display: flex; align-items: center; gap: 12px; margin-top: 28px; padding: 16px 0; border-top: 1px solid var(--ink); }
+  .binTxt { flex: 1; min-width: 0; }
+  .binTxt small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 3px; }
+  .binAsk { font-family: var(--mono); font-size: 12px; }
+
   .hero { padding: 26px 0 30px; }
   .figure { display: flex; align-items: baseline; gap: 10px; line-height: 0.9; }
   .big { font-size: 112px; font-weight: 500; letter-spacing: -0.06em; }

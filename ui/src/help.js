@@ -135,6 +135,10 @@ export const H = {
     risk: 'care',
     text: 'Añade el plan oculto «Máximo rendimiento» de Windows (no hace nada hasta que lo actives). Es para equipos enchufados: en una portátil o consola portátil con batería la gastará mucho más rápido y puede subir la temperatura. No todos los equipos lo ofrecen.',
   },
+  recycle: {
+    risk: 'final',
+    text: 'Vacía la Papelera de reciclaje de todas las unidades con la función oficial de Windows. A diferencia de la limpieza normal, esto NO pasa por la cuarentena y no se puede deshacer: revisa la Papelera antes si no estás seguro de lo que hay dentro.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
