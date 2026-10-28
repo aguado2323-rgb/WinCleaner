@@ -4,8 +4,10 @@
 mod clean;
 mod debloat;
 mod disk;
+mod duplicates;
 mod protect;
 mod restore;
+mod services;
 mod startup;
 mod tweaks;
 mod uninstall;
@@ -30,6 +32,11 @@ pub use uninstall::{
 };
 pub use tweaks::{tweak_set, tweaks_list, TweakInfo};
 pub use protect::{is_protected, Protected};
+pub use duplicates::{
+    find_duplicates, find_large_old, folders as user_folders, quarantine_duplicates, DupFile, DupGroup, DupReport,
+    DupSelection, Folder, OldFile,
+};
+pub use services::{service_set, services_list, ServiceInfo};
 pub use schedule::{
     last_run as schedule_last_run, load as schedule_load, run_now as schedule_run_now, run_scheduled, schedule_save, task_exists as schedule_task_exists,
     AutoMode, Freq, LastRun, Schedule,

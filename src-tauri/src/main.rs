@@ -8,7 +8,7 @@ use wincleaner_core::{
     list_programs, program_icons, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
-    scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    find_duplicates, find_large_old, quarantine_duplicates, user_folders, DupReport, DupSelection, Folder, OldFile, service_set, services_list, ServiceInfo, scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
@@ -137,6 +137,37 @@ async fn space_quarantine(paths: Vec<String>) -> Result<CleanReport, String> {
     .map_err(|e| e.to_string())
 }
 
+/// Carpetas del usuario que se pueden revisar en busca de duplicados y archivos grandes.
+#[tauri::command]
+fn dup_folders() -> Vec<Folder> {
+    user_folders()
+}
+
+/// Archivos idénticos (por contenido) dentro de las carpetas elegidas por id.
+#[tauri::command]
+async fn dup_scan(folders: Vec<String>, min_mb: u64) -> Result<DupReport, String> {
+    tauri::async_runtime::spawn_blocking(move || find_duplicates(&folders, min_mb.saturating_mul(1_000_000)))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Mueve a la cuarentena las copias elegidas; el núcleo las vuelve a comparar con la que se conserva.
+#[tauri::command]
+async fn dup_quarantine(selection: Vec<DupSelection>) -> Result<CleanReport, String> {
+    tauri::async_runtime::spawn_blocking(move || quarantine_duplicates(&selection, &quarantine_dir(), &now_batch()))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Archivos grandes que llevan tiempo sin modificarse. Se mueven con `space_quarantine`.
+#[tauri::command]
+async fn old_scan(folders: Vec<String>, min_mb: u64, days: u64) -> Result<Vec<OldFile>, String> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    tauri::async_runtime::spawn_blocking(move || find_large_old(&folders, min_mb.saturating_mul(1_000_000), days, now))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn reveal(path: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
@@ -240,6 +271,19 @@ async fn tweaks_state() -> Result<Vec<TweakInfo>, String> {
     tauri::async_runtime::spawn_blocking(tweaks_list).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn services_state() -> Result<Vec<ServiceInfo>, String> {
+    tauri::async_runtime::spawn_blocking(|| services_list(&data_dir())).await.map_err(|e| e.to_string())
+}
+
+/// Pasa a «Manual» o deshace un servicio del catálogo; el núcleo guarda y restaura el tipo de inicio original.
+#[tauri::command]
+async fn service_apply(id: String, enable: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || service_set(&id, enable, &data_dir()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Aplica o deshace un ajuste del catálogo; el núcleo guarda y restaura los valores originales.
 #[tauri::command]
 async fn tweak_apply(id: String, enable: bool) -> Result<(), String> {
@@ -339,7 +383,7 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, schedule_state, schedule_apply, schedule_now])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, schedule_state, schedule_apply, schedule_now])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

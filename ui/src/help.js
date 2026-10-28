@@ -103,6 +103,14 @@ export const H = {
     text: 'Guarda una foto de la configuración de Windows antes de quitar apps. Ojo: las apps de la Tienda no vuelven con el punto de restauración, se reinstalan desde Microsoft Store.',
   },
 
+  dupInfo: {
+    risk: 'safe',
+    text: 'Compara el contenido de los archivos de las carpetas elegidas (no solo el nombre) y agrupa los que son idénticos. Tú eliges qué copia se queda; las demás van a la cuarentena, de donde se pueden restaurar. Antes de mover cada una se vuelve a comprobar que sigue siendo idéntica. No toca carpetas del sistema.',
+  },
+  oldInfo: {
+    risk: 'safe',
+    text: 'Lista archivos muy grandes que no se han modificado desde hace tiempo, para que decidas si siguen haciendo falta. No se marca nada por ti. Lo que elijas va a la cuarentena y se puede restaurar. Ten en cuenta que «sin modificar» no significa «sin usar»: un vídeo o un juego pueden llevar años sin cambiar y seguir en uso.',
+  },
   schedAuto: {
     risk: 'reversible',
     text: 'Crea una tarea en el Programador de tareas de Windows que abre WinCleaner sin ventana a la hora elegida. Solo usa las categorías marcadas como seguras y lo que limpia va a la cuarentena, así que puedes devolverlo. Se quita desactivando esta opción.',
@@ -118,6 +126,10 @@ export const H = {
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
+  },
+  servicesInfo: {
+    risk: 'reversible',
+    text: 'Un servicio es un programa de Windows que arranca solo con el equipo. «Pasar a Manual» no lo elimina ni lo detiene: solo evita que arranque solo, y Windows lo inicia si algo lo pide. «Deshacer» devuelve el tipo de inicio que tenía antes. Solo se muestran servicios de una lista cerrada que no afecta a la seguridad ni a las actualizaciones. Necesita administrador.',
   },
   tweakPoint: {
     risk: 'safe',
