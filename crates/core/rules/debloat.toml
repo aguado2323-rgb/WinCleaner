@@ -294,3 +294,12 @@ category = "Terceros"
 what = "Red social instalada por el fabricante."
 impact = "Ninguno; sigue en el navegador."
 risk = "safe"
+
+[[app]]
+id = "copilot-app"
+package = "Microsoft.Copilot"
+name = "Copilot (app)"
+category = "Microsoft"
+what = "Asistente de inteligencia artificial de Microsoft."
+impact = "Pierdes el acceso directo a Copilot; puedes usarlo desde el navegador."
+risk = "safe"
