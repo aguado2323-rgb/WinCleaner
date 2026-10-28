@@ -164,6 +164,55 @@ pub fn restore_batch(quarantine_dir: &Path, batch: &str) -> (u64, Vec<String>) {
     (restored, errors)
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchInfo {
+    pub batch: String,
+    pub files: u64,
+    pub bytes: u64,
+}
+
+fn valid_batch(batch: &str) -> bool {
+    !batch.is_empty() && batch.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Lotes que hay ahora mismo en la cuarentena, del más reciente al más antiguo.
+pub fn list_batches(quarantine_dir: &Path) -> Vec<BatchInfo> {
+    let Ok(read) = fs::read_dir(quarantine_dir) else { return Vec::new() };
+    let mut out = Vec::new();
+    for d in read.flatten() {
+        let batch = d.file_name().to_string_lossy().into_owned();
+        if !valid_batch(&batch) {
+            continue;
+        }
+        let mut info = BatchInfo { batch, files: 0, bytes: 0 };
+        for f in fs::read_dir(d.path()).into_iter().flatten().flatten() {
+            if !f.file_name().to_string_lossy().ends_with(MANIFEST) {
+                continue;
+            }
+            let Ok(bytes) = fs::read(f.path()) else { continue };
+            let Ok(entries) = serde_json::from_slice::<Vec<Entry>>(&bytes) else { continue };
+            for e in entries {
+                if let Ok(m) = fs::symlink_metadata(&e.stored) {
+                    info.files += 1;
+                    info.bytes += m.len();
+                }
+            }
+        }
+        out.push(info);
+    }
+    out.sort_by(|a, b| b.batch.len().cmp(&a.batch.len()).then(b.batch.cmp(&a.batch)));
+    out
+}
+
+/// Borra definitivamente un lote de la cuarentena. Es la única operación de
+/// borrado real y solo se ejecuta cuando la persona la pide expresamente.
+pub fn purge_batch(quarantine_dir: &Path, batch: &str) -> std::io::Result<()> {
+    if !valid_batch(batch) {
+        return Err(std::io::Error::other("lote no válido"));
+    }
+    fs::remove_dir_all(quarantine_dir.join(batch))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,6 +273,24 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert_eq!(fs::read(tmp.path().join("y.bin")).unwrap(), b"nuevo");
         assert_eq!(fs::read(tmp.path().join("z.bin")).unwrap(), b"zeta");
+    }
+
+    #[test]
+    fn list_and_purge_batches() {
+        let tmp = tempfile::tempdir().unwrap();
+        let q = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("a.bin"), [0u8; 30]).unwrap();
+        fs::write(tmp.path().join("b.bin"), [0u8; 20]).unwrap();
+        let rule = rule_for(tmp.path(), "WC_T4");
+        clean_rule(&rule, &Mode::Quarantine { dir: q.path().to_path_buf(), batch: "100".into() });
+
+        let batches = list_batches(q.path());
+        assert_eq!(batches.len(), 1);
+        assert_eq!((batches[0].files, batches[0].bytes), (2, 50));
+
+        assert!(purge_batch(q.path(), "../x").is_err());
+        purge_batch(q.path(), "100").unwrap();
+        assert!(list_batches(q.path()).is_empty());
     }
 
     #[test]
