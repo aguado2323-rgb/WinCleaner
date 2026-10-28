@@ -386,6 +386,9 @@ async fn recycle_state() -> Result<RecycleInfo, String> {
 #[tauri::command]
 async fn recycle_clear() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(recycle_empty).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn power_list() -> Result<Vec<Plan>, String> {
     tauri::async_runtime::spawn_blocking(power_plans).await.map_err(|e| e.to_string())?
 }
