@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
     builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
@@ -13,6 +14,7 @@ use wincleaner_core::{
     power_add_ultimate, power_plans, power_set, Plan,
     recycle_empty, recycle_info, RecycleInfo,
     history_record, history_report, HistoryEvent, HistoryKind, UsageReport,
+    Monitor, MonitorLive, MonitorSpecs,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
@@ -454,6 +456,21 @@ async fn usage_report() -> Result<UsageReport, String> {
     tauri::async_runtime::spawn_blocking(|| history_report(&data_dir(), now_secs())).await.map_err(|e| e.to_string())
 }
 
+/// Especificaciones fijas del equipo (la consulta de la tarjeta gráfica tarda: va en otro hilo).
+#[tauri::command]
+async fn monitor_specs() -> Result<MonitorSpecs, String> {
+    tauri::async_runtime::spawn_blocking(|| Monitor::new().specs()).await.map_err(|e| e.to_string())
+}
+
+/// Muestra en vivo; el monitor se conserva entre llamadas porque la CPU se mide entre dos lecturas.
+#[tauri::command]
+async fn monitor_sample(state: tauri::State<'_, Arc<Mutex<Monitor>>>) -> Result<MonitorLive, String> {
+    let monitor = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || monitor.lock().map(|mut m| m.sample()).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 fn main() {
     // Lanzado por el Programador de tareas: sin ventana, hace la pasada y sale.
     if std::env::args().any(|a| a == "--auto") {
@@ -461,7 +478,8 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now])
+        .manage(Arc::new(Mutex::new(Monitor::new())))
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now, monitor_specs, monitor_sample])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
