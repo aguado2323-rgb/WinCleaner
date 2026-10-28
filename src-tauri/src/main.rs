@@ -9,6 +9,7 @@ use wincleaner_core::{
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
     find_duplicates, find_large_old, quarantine_duplicates, user_folders, DupReport, DupSelection, Folder, OldFile, service_set, services_list, ServiceInfo, scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    power_add_ultimate, power_plans, power_set, Plan,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
@@ -376,6 +377,21 @@ async fn schedule_now(config: Schedule) -> Result<LastRun, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn power_list() -> Result<Vec<Plan>, String> {
+    tauri::async_runtime::spawn_blocking(power_plans).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn power_activate(guid: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || power_set(&guid)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn power_ultimate() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(power_add_ultimate).await.map_err(|e| e.to_string())?
+}
+
 fn main() {
     // Lanzado por el Programador de tareas: sin ventana, hace la pasada y sale.
     if std::env::args().any(|a| a == "--auto") {
@@ -383,7 +399,7 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, schedule_state, schedule_apply, schedule_now])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
