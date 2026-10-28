@@ -111,6 +111,18 @@ export const H = {
     risk: 'safe',
     text: 'Lista archivos muy grandes que no se han modificado desde hace tiempo, para que decidas si siguen haciendo falta. No se marca nada por ti. Lo que elijas va a la cuarentena y se puede restaurar. Ten en cuenta que «sin modificar» no significa «sin usar»: un vídeo o un juego pueden llevar años sin cambiar y seguir en uso.',
   },
+  schedAuto: {
+    risk: 'reversible',
+    text: 'Crea una tarea en el Programador de tareas de Windows que abre WinCleaner sin ventana a la hora elegida. Solo usa las categorías marcadas como seguras y lo que limpia va a la cuarentena, así que puedes devolverlo. Se quita desactivando esta opción.',
+  },
+  schedMode: {
+    risk: 'safe',
+    text: '«Limpiar» mueve a la cuarentena lo seguro (temporales, cachés) y te avisa de lo liberado. «Solo avisar» no toca nada: únicamente te dice cuánto espacio podrías recuperar.',
+  },
+  schedPurge: {
+    risk: 'final',
+    text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',

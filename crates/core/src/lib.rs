@@ -12,6 +12,7 @@ mod startup;
 mod tweaks;
 mod uninstall;
 mod rules;
+mod schedule;
 
 pub use clean::{
     clean_rule, list_batches, quarantine_items, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
@@ -36,3 +37,7 @@ pub use duplicates::{
     DupSelection, Folder, OldFile,
 };
 pub use services::{service_set, services_list, ServiceInfo};
+pub use schedule::{
+    last_run as schedule_last_run, load as schedule_load, run_now as schedule_run_now, run_scheduled, schedule_save, task_exists as schedule_task_exists,
+    AutoMode, Freq, LastRun, Schedule,
+};
