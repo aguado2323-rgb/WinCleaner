@@ -62,13 +62,13 @@
   load();
 </script>
 
-<p class="label">Ajustes</p>
+<p class="label">Ajustes de Windows</p>
 <h1 class="h1">Windows a tu manera.</h1>
-<p class="lede">Ajustes de privacidad, rendimiento e interfaz. Cada uno cambia solo unos valores concretos de Windows y se deshace con un clic, devolviendo lo que había antes. <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label="Cómo funcionan los ajustes" /></p>
+<p class="lede">Cambios opcionales en el propio Windows (no en WinCleaner): privacidad, rendimiento e interfaz. Pulsa «Aplicar» para activar el cambio y «Deshacer» para volver a como estaba. <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label="Cómo funcionan los ajustes" /></p>
 
 <section class="top">
   <span class="big num">{appliedCount}<small>/{items.length}</small></span>
-  <span class="cap">ajustes aplicados</span>
+  <span class="cap">cambios aplicados en Windows</span>
   <label class="pt">
     <input type="checkbox" bind:checked={makePoint} />
     <span class="box" aria-hidden="true"></span>
@@ -97,10 +97,10 @@
             <small>{t.what}</small>
           </div>
           <Help text={t.help + (RESTART[t.restart] ? ' ' + RESTART[t.restart] : '')} risk={t.risk === 'care' ? 'care' : 'reversible'} label="Qué hace {t.name}" />
-          <div class="seg" role="group" aria-label={t.name}>
-            <button class:on={t.applied} disabled={busy[t.id] || (t.needs_admin && !admin)} aria-pressed={t.applied} onclick={() => toggle(t, true)}>Sí</button>
-            <button class:on={!t.applied} disabled={busy[t.id] || (t.needs_admin && !admin)} aria-pressed={!t.applied} onclick={() => toggle(t, false)}>No</button>
-          </div>
+          <span class="state label" class:on={t.applied}>{t.applied ? 'Aplicado' : 'Sin aplicar'}</span>
+          <button class="act" class:undo={t.applied} disabled={busy[t.id] || (t.needs_admin && !admin)} onclick={() => toggle(t, !t.applied)}>
+            {t.applied ? 'Deshacer' : 'Aplicar'}
+          </button>
         </li>
       {/each}
     </ul>
@@ -132,12 +132,12 @@
   .tag { font-size: 10px; }
   .tag.warn { color: var(--accent); }
 
-  .seg { display: flex; flex: none; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden; }
-  .seg button { border: 0; background: none; padding: 6px 13px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); transition: background 0.1s; }
-  .seg button + button { border-left: 1px solid var(--ink); }
-  .seg button:hover:not(.on):not(:disabled) { background: var(--paper-2); color: var(--ink); }
-  .seg button.on { background: var(--ink); color: var(--paper); }
-  .seg button.on:first-child { background: var(--accent); color: var(--on-accent); }
-  .seg button:disabled { opacity: 0.45; cursor: default; }
+  .state { flex: none; width: 84px; text-align: right; }
+  .state.on { color: var(--accent); font-weight: 600; }
+  .state.on::before { content: '● '; }
+  .act { flex: none; width: 92px; border: 1px solid var(--ink); border-radius: 2px; background: var(--accent); color: var(--on-accent); padding: 6px 0; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; transition: background 0.1s, color 0.1s; }
+  .act:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+  .act.undo { background: none; color: var(--ink-2); font-weight: 400; }
+  .act:disabled { opacity: 0.45; cursor: default; }
   .empty { padding: 50px 0; color: var(--ink-2); font-size: 15px; }
 </style>

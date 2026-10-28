@@ -11,6 +11,9 @@
   --rule: #d5d1c3;
   --accent: #ff4d00;
   --on-accent: #151512;
+  --side: #171612;
+  --side-ink: #f1eee3;
+  --side-dim: #9b988b;
   --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --mono: 'Cascadia Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
@@ -38,6 +41,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: var(--rule); border: 3px solid var(--paper); }
 
 /* Piezas compartidas */
+.page > .label:first-child { color: var(--accent); font-weight: 600; }
+.page > .label:first-child::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--accent); border-radius: 2px; }
 .label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .h1 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }

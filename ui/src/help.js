@@ -105,7 +105,7 @@ export const H = {
 
   tweakToggle: {
     risk: 'reversible',
-    text: '«Sí» aplica el ajuste y «No» lo deshace dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
+    text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
   },
   tweakPoint: {
     risk: 'safe',

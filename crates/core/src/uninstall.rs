@@ -196,6 +196,17 @@ pub fn icon_path(display_icon: &str) -> String {
     t.trim().to_string()
 }
 
+/// `"C:\\Foo\\app.exe",2` → `2`. Sin índice, 0. Un índice negativo es el identificador del recurso.
+pub fn icon_index(display_icon: &str) -> i32 {
+    let t = display_icon.trim();
+    let idx = if let Some(rest) = t.strip_prefix('"') {
+        rest.split('"').nth(1).unwrap_or("").trim_start_matches(',')
+    } else {
+        t.rsplit_once(',').map_or("", |(_, i)| i)
+    };
+    idx.trim().parse().unwrap_or(0)
+}
+
 /// FILETIME de Windows (100 ns desde 1601) → `AAAA-MM-DD`. 0 → vacío.
 pub fn filetime_to_date(ft: u64) -> String {
     if ft == 0 {
@@ -428,28 +439,82 @@ mod imp {
         out
     }
 
+    /// El `.exe` principal de una carpeta de instalación: el más grande que no sea un desinstalador.
+    fn main_exe(dir: &str) -> Option<String> {
+        let mut best: Option<(u64, String)> = None;
+        for e in std::fs::read_dir(dir).ok()?.flatten() {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            if !name.ends_with(".exe") || name.starts_with("unins") || name.contains("uninstall") || name.contains("setup") {
+                continue;
+            }
+            let len = e.metadata().map(|m| m.len()).unwrap_or(0);
+            if best.as_ref().is_none_or(|(l, _)| len > *l) {
+                best = Some((len, e.path().to_string_lossy().into_owned()));
+            }
+        }
+        best.map(|(_, p)| p)
+    }
+
     /// Iconos de los programas como PNG en base64. La ruta del icono sale del registro (no de la
-    /// interfaz) y solo se leen archivos `.exe`, `.ico` o `.dll` que existen.
+    /// interfaz) y solo se leen archivos `.exe`, `.ico` o `.dll` que existen. Si el programa no
+    /// declara icono se usa el `.exe` principal de su carpeta de instalación.
     pub fn icons(ids: &[String]) -> std::collections::HashMap<String, String> {
         let mut paths = serde_json::Map::new();
         for id in ids {
             let Some((h, path)) = parse_id(id) else { continue };
             let Ok(key) = hive(h).open_subkey_with_flags(&path, KEY_READ) else { continue };
-            let src = icon_path(&key.get_value::<String, _>("DisplayIcon").unwrap_or_default());
-            let p = Path::new(&src);
-            let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-            if p.is_file() && matches!(ext.as_str(), "exe" | "ico" | "dll") {
-                paths.insert(id.clone(), serde_json::Value::String(src));
+            let raw = key.get_value::<String, _>("DisplayIcon").unwrap_or_default();
+            let mut src = icon_path(&raw);
+            let mut idx = icon_index(&raw);
+            let ok = |p: &str| {
+                let p = Path::new(p);
+                let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+                p.is_file() && matches!(ext.as_str(), "exe" | "ico" | "dll")
+            };
+            if !ok(&src) {
+                let loc: String = key.get_value("InstallLocation").unwrap_or_default();
+                match main_exe(loc.trim().trim_matches('"')) {
+                    Some(exe) => {
+                        src = exe;
+                        idx = 0;
+                    }
+                    None => continue,
+                }
             }
+            paths.insert(id.clone(), serde_json::json!({ "p": src, "i": idx }));
         }
         let mut out = std::collections::HashMap::new();
         let all: Vec<_> = paths.into_iter().collect();
         for chunk in all.chunks(60) {
             let json = serde_json::Value::Object(chunk.iter().cloned().collect()).to_string();
-            let script = "Add-Type -AssemblyName System.Drawing; $m = $env:WC_ICONS | ConvertFrom-Json; $o = @{}; \
-                foreach ($p in $m.PSObject.Properties) { try { $i = [System.Drawing.Icon]::ExtractAssociatedIcon($p.Value); \
-                if ($i) { $s = New-Object IO.MemoryStream; $i.ToBitmap().Save($s, [System.Drawing.Imaging.ImageFormat]::Png); \
-                $o[$p.Name] = [Convert]::ToBase64String($s.ToArray()) } } catch {} }; $o | ConvertTo-Json -Compress";
+            // ExtractIconEx respeta el índice del icono (muchos programas guardan el suyo dentro de una
+            // DLL) y da la versión de 32 px con transparencia; si falla se prueba el icono asociado.
+            let script = r#"Add-Type -AssemblyName System.Drawing
+Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+public class WcIco {
+  [DllImport("shell32.dll", CharSet=CharSet.Unicode)] public static extern uint ExtractIconEx(string f, int i, IntPtr[] large, IntPtr[] small, uint n);
+  [DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr h);
+}
+'@
+$m = $env:WC_ICONS | ConvertFrom-Json; $o = @{}
+foreach ($e in $m.PSObject.Properties) {
+  try {
+    $ic = $null; $h = $null
+    $l = New-Object IntPtr[] 1; $s = New-Object IntPtr[] 1
+    if ([WcIco]::ExtractIconEx($e.Value.p, [int]$e.Value.i, $l, $s, 1) -gt 0 -and $l[0] -ne [IntPtr]::Zero) { $h = $l[0]; $ic = [System.Drawing.Icon]::FromHandle($h) }
+    elseif ($s[0] -ne [IntPtr]::Zero) { $h = $s[0]; $ic = [System.Drawing.Icon]::FromHandle($h) }
+    if (-not $ic) { $ic = [System.Drawing.Icon]::ExtractAssociatedIcon($e.Value.p) }
+    if ($ic) {
+      $bmp = $ic.ToBitmap(); $ms = New-Object IO.MemoryStream
+      $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+      $o[$e.Name] = [Convert]::ToBase64String($ms.ToArray())
+      $bmp.Dispose()
+    }
+    if ($h) { [void][WcIco]::DestroyIcon($h) }
+  } catch {}
+}
+$o | ConvertTo-Json -Compress"#;
             let Ok(res) = Command::new("powershell")
                 .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
                 .env("WC_ICONS", json)
@@ -729,6 +794,9 @@ mod tests {
         assert_eq!(icon_path(r#""C:\Foo\app.exe",0"#), r"C:\Foo\app.exe");
         assert_eq!(icon_path(r"C:\Foo\app.exe,-12"), r"C:\Foo\app.exe");
         assert_eq!(icon_path(r"C:\Foo\app.ico"), r"C:\Foo\app.ico");
+        assert_eq!(icon_index(r#""C:\Foo\app.dll",2"#), 2);
+        assert_eq!(icon_index(r"C:\Foo\app.dll,-12"), -12);
+        assert_eq!(icon_index(r"C:\Foo\app.exe"), 0);
         assert_eq!(filetime_to_date(116_444_736_000_000_000), "1970-01-01");
         assert_eq!(filetime_to_date((1_700_000_000 + 11_644_473_600) * 10_000_000), "2023-11-14");
         assert_eq!(filetime_to_date(0), "");

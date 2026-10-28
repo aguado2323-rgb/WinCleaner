@@ -228,6 +228,11 @@ pub fn list_batches(quarantine_dir: &Path) -> Vec<BatchInfo> {
         if !valid_batch(&batch) {
             continue;
         }
+        // Una limpieza cuyos archivos ya no están (solo queda su registro) no sirve para nada:
+        // se retira para que no salga como pendiente.
+        if !has_payload(&d.path()) && remove_tree(&d.path()).is_ok() {
+            continue;
+        }
         let mut info = BatchInfo { batch, files: 0, bytes: 0 };
         for f in fs::read_dir(d.path()).into_iter().flatten().flatten() {
             if !f.file_name().to_string_lossy().ends_with(MANIFEST) {
@@ -255,42 +260,97 @@ pub fn purge_batch(quarantine_dir: &Path, batch: &str) -> std::io::Result<()> {
         return Err(std::io::Error::other("lote no válido"));
     }
     let dir = quarantine_dir.join(batch);
-    let mut failed = 0u64;
-    purge_dir(&dir, &mut failed);
-    if failed > 0 {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            format!(
-                "{failed} archivos no se han podido borrar porque pertenecen al sistema o a otro usuario; \
-                 abre WinCleaner como administrador y vuelve a intentarlo"
-            ),
-        ));
+    purge_dir(&dir);
+    // Las carpetas vacías (y el registro de la limpieza) se quitan siempre; si aún queda algo,
+    // son archivos que Windows no deja borrar.
+    if remove_tree(&dir).is_ok() || !dir.exists() {
+        return Ok(());
     }
-    fs::remove_dir_all(&dir)
+    let left = count_files(&dir);
+    if left == 0 {
+        // Solo quedan carpetas vacías: no hay nada que conservar.
+        return remove_tree(&dir);
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        format!(
+            "{left} archivos no se han podido borrar porque pertenecen al sistema o a otro usuario; \
+             abre WinCleaner como administrador y vuelve a intentarlo"
+        ),
+    ))
 }
 
-/// Borra todo lo que puede. Los archivos que vienen de carpetas del sistema conservan sus permisos
-/// originales y a veces son de solo lectura, así que se quita ese atributo antes de reintentar.
-fn purge_dir(dir: &Path, failed: &mut u64) {
+/// Quita el atributo de solo lectura de un elemento, si lo tiene.
+fn clear_readonly(path: &Path, meta: &fs::Metadata) {
+    let mut perms = meta.permissions();
+    if perms.readonly() {
+        #[allow(clippy::permissions_set_readonly_false)]
+        perms.set_readonly(false);
+        let _ = fs::set_permissions(path, perms);
+    }
+}
+
+/// Borra una carpeta entera, quitando antes el atributo de solo lectura a lo que lo tenga
+/// (también a las carpetas, que en Windows impide borrarlas).
+fn remove_tree(dir: &Path) -> std::io::Result<()> {
+    if let Ok(meta) = fs::symlink_metadata(dir) {
+        clear_readonly(dir, &meta);
+    }
+    if let Ok(read) = fs::read_dir(dir) {
+        for entry in read.flatten() {
+            let path = entry.path();
+            let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+            if meta.is_dir() {
+                let _ = remove_tree(&path);
+            } else {
+                clear_readonly(&path, &meta);
+                let _ = fs::remove_file(&path);
+            }
+        }
+    }
+    fs::remove_dir(dir)
+}
+
+/// Borra los archivos que puede, sin seguir enlaces simbólicos.
+fn purge_dir(dir: &Path) {
     let Ok(read) = fs::read_dir(dir) else { return };
     for entry in read.flatten() {
         let path = entry.path();
         let Ok(meta) = fs::symlink_metadata(&path) else { continue };
         if meta.is_dir() {
-            purge_dir(&path, failed);
-            if fs::remove_dir(&path).is_err() && fs::read_dir(&path).is_ok_and(|mut r| r.next().is_none()) {
-                *failed += 1;
-            }
+            purge_dir(&path);
         } else if fs::remove_file(&path).is_err() {
-            let mut perms = meta.permissions();
-            #[allow(clippy::permissions_set_readonly_false)]
-            perms.set_readonly(false);
-            let _ = fs::set_permissions(&path, perms);
-            if fs::remove_file(&path).is_err() {
-                *failed += 1;
-            }
+            clear_readonly(&path, &meta);
+            let _ = fs::remove_file(&path);
         }
     }
+}
+
+fn count_files(dir: &Path) -> u64 {
+    let mut n = 0;
+    for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+        match fs::symlink_metadata(entry.path()) {
+            Ok(m) if m.is_dir() => n += count_files(&entry.path()),
+            Ok(_) => n += 1,
+            Err(_) => {}
+        }
+    }
+    n
+}
+
+/// ¿Queda algo en el lote aparte del registro (manifest) de la limpieza?
+fn has_payload(dir: &Path) -> bool {
+    for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+        let Ok(m) = fs::symlink_metadata(entry.path()) else { continue };
+        if m.is_dir() {
+            if has_payload(&entry.path()) {
+                return true;
+            }
+        } else if !entry.file_name().to_string_lossy().ends_with(MANIFEST) {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -394,6 +454,26 @@ mod tests {
         fs::set_permissions(&f, perms).unwrap();
         purge_batch(q.path(), "7").unwrap();
         assert!(!q.path().join("7").exists());
+    }
+
+    #[test]
+    fn purge_removes_read_only_folders_and_leftover_logs_disappear() {
+        let q = tempfile::tempdir().unwrap();
+        let dir = q.path().join("8/rule/ro");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("a.bin"), b"x").unwrap();
+        fs::write(q.path().join("8/manifest.json"), b"[]").unwrap();
+        let mut perms = fs::metadata(&dir).unwrap().permissions();
+        perms.set_readonly(true);
+        fs::set_permissions(&dir, perms).ok();
+        purge_batch(q.path(), "8").unwrap();
+        assert!(!q.path().join("8").exists());
+
+        // Un lote sin archivos (solo el registro) desaparece de la lista.
+        fs::create_dir_all(q.path().join("9")).unwrap();
+        fs::write(q.path().join("9/manifest.json"), b"[]").unwrap();
+        assert!(list_batches(q.path()).is_empty());
+        assert!(!q.path().join("9").exists());
     }
 
     #[test]
