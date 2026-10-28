@@ -5,7 +5,7 @@
   import { fmt } from './format.js';
   import { squarify } from './treemap.js';
 
-  let { notify } = $props();
+  let { notify, refreshQuarantine, openQuarantine } = $props();
 
   const MAX_TILES = 14;
 
@@ -15,6 +15,9 @@
   let loading = $state(false);
   let tab = $state('folders');
   let hovered = $state(null);
+  let picked = $state({});
+  let confirming = $state(false);
+  let working = $state(false);
   const cache = new Map();
   let seq = 0;
 
@@ -45,9 +48,37 @@
     return squarify(shown).map((t, i) => ({ ...t, i }));
   });
 
+  let pickedItems = $derived(
+    [...(report?.children ?? []), ...(report?.largest ?? [])]
+      .filter((x, i, all) => picked[x.path] && all.findIndex((y) => y.path === x.path) === i)
+  );
+  let pickedBytes = $derived(pickedItems.reduce((a, x) => a + x.bytes, 0));
+
+  async function quarantineSelected() {
+    working = true;
+    try {
+      const rep = await invoke('space_quarantine', { paths: pickedItems.map((x) => x.path) });
+      notify(
+        rep.errors.length
+          ? `${rep.files} archivos movidos · ${rep.errors.length} con error: ${rep.errors[0]}`
+          : `${fmt(rep.bytes)} movidos a la cuarentena`,
+        { label: 'Ver cuarentena', run: openQuarantine }
+      );
+      refreshQuarantine();
+    } catch (e) {
+      notify('No se pudo mover: ' + e);
+    }
+    working = false;
+    confirming = false;
+    picked = {};
+    cache.clear();
+    await go(current);
+  }
+
   async function go(path) {
     current = path;
     hovered = null;
+    picked = {};
     const id = ++seq;
     if (cache.has(path)) {
       report = cache.get(path);
@@ -93,7 +124,7 @@
 
 <p class="label">Espacio</p>
 <h1 class="h1">Qué ocupa tu disco.</h1>
-<p class="lede">Solo lectura: aquí no se borra nada. Haz clic en un bloque para entrar. <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label="Cómo leer el mapa" /></p>
+<p class="lede">Haz clic en un bloque para entrar y marca lo que quieras quitar: irá a la cuarentena, no se borra. <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label="Cómo leer el mapa" /></p>
 
 <div class="roots tabs">
   {#each roots as r (r.path)}
@@ -154,10 +185,21 @@
     <button role="tab" aria-selected={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>Archivos más grandes</button>
   </div>
 
+  {#if pickedItems.length}
+    <div class="bar">
+      <span class="num"><b>{pickedItems.length}</b> {pickedItems.length === 1 ? 'elemento' : 'elementos'} · {fmt(pickedBytes)}</span>
+      <button class="link" onclick={() => (picked = {})}>Ninguno</button>
+      <span class="grow"></span>
+      <Help text={H.spaceDelete.text} risk={H.spaceDelete.risk} label="Qué hace Mover a la cuarentena" />
+      <button class="btn danger" onclick={() => (confirming = true)}>Mover a la cuarentena</button>
+    </div>
+  {/if}
+
   <ul>
     {#if tab === 'folders'}
       {#each report.children.slice(0, 40) as c, i (c.path)}
-        <li style="animation-delay:{i * 14}ms" class:hot={hovered === c.path}>
+        <li style="animation-delay:{i * 14}ms" class:hot={hovered === c.path} class:picked={picked[c.path]}>
+          {@render pick(c)}
           <button class="row" onclick={() => (c.is_dir ? go(c.path) : reveal(c.path))}>
             <span class="nm">{c.name}{c.is_dir ? '/' : ''}</span>
             <span class="mini" aria-hidden="true"><i style="width:{Math.max(c.bytes ? 2 : 0, (c.bytes / maxChild) * 100)}%"></i></span>
@@ -168,7 +210,8 @@
       {/each}
     {:else}
       {#each report.largest as f, i (f.path)}
-        <li style="animation-delay:{i * 14}ms">
+        <li style="animation-delay:{i * 14}ms" class:picked={picked[f.path]}>
+          {@render pick(f)}
           <div class="row">
             <span class="nm">
               {baseName(f.path)}
@@ -183,6 +226,32 @@
       {/each}
     {/if}
   </ul>
+{/if}
+
+{#snippet pick(x)}
+  {#if x.protected}
+    <span class="lock"><Help text={H.spaceProtected.text} risk={H.spaceProtected.risk} label="Por qué está bloqueado" /></span>
+  {:else}
+    <label class="pick" title="Seleccionar">
+      <input type="checkbox" bind:checked={picked[x.path]} aria-label="Seleccionar {baseName(x.path)}" />
+      <span class="box" aria-hidden="true"></span>
+    </label>
+  {/if}
+{/snippet}
+
+{#if confirming}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="overlay" role="presentation" onclick={() => !working && (confirming = false)}>
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+    <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
+      <h3>¿Mover {pickedItems.length} {pickedItems.length === 1 ? 'elemento' : 'elementos'} ({fmt(pickedBytes)})?</h3>
+      <p>No se borran: pasan a la cuarentena y puedes devolverlos a su sitio cuando quieras.</p>
+      <div class="row">
+        <button class="btn" disabled={working} onclick={() => (confirming = false)}>Cancelar</button>
+        <button class="btn primary" disabled={working} onclick={quarantineSelected}>{working ? 'Moviendo…' : 'Mover'}</button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -211,7 +280,18 @@
 
   .sub { margin: 28px 0 4px; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li { animation: line 0.22s both; border-bottom: 1px solid var(--rule); }
+  li { display: flex; align-items: center; animation: line 0.22s both; border-bottom: 1px solid var(--rule); }
+  li.picked { background: color-mix(in srgb, var(--accent) 10%, var(--paper)); }
+  .pick, .lock { flex: none; width: 34px; display: grid; place-items: center; cursor: pointer; }
+  .lock { cursor: default; }
+  .pick input { position: absolute; opacity: 0; pointer-events: none; }
+  .pick .box { position: relative; width: 16px; height: 16px; border: 1.5px solid var(--ink); border-radius: 2px; }
+  .pick input:checked + .box { background: var(--accent); }
+  .pick input:checked + .box::after { content: ''; position: absolute; left: 4px; top: 0; width: 4px; height: 9px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: rotate(40deg); }
+  .pick input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar { display: flex; align-items: center; gap: 14px; margin: 6px 0 4px; padding: 10px 12px; border: 1px solid var(--ink); border-left: 6px solid var(--accent); font-size: 13px; }
+  .bar .grow { flex: 1; }
+  .row { flex: 1; min-width: 0; }
   .row { display: flex; align-items: center; gap: 18px; width: 100%; padding: 11px 2px; border: 0; background: none; text-align: left; }
   button.row:hover, li.hot .row { background: var(--paper-2); }
   .row .nm { flex: 1; min-width: 0; font-size: 14px; display: grid; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

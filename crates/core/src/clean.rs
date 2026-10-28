@@ -126,6 +126,50 @@ fn append_manifest(batch_dir: &Path, rule_id: &str, entries: &[Entry], rep: &mut
     }
 }
 
+/// Mueve archivos o carpetas elegidos a mano (analizador de espacio) a la cuarentena.
+/// Las rutas protegidas del sistema y los enlaces simbólicos se rechazan siempre.
+pub fn quarantine_items(items: &[PathBuf], quarantine_dir: &Path, batch: &str) -> CleanReport {
+    let mode = Mode::Quarantine { dir: quarantine_dir.to_path_buf(), batch: batch.to_string() };
+    let rep = CleanReport { rule_id: "space".into(), ..Default::default() };
+    let mut ctx = Ctx { mode: &mode, rep, entries: Vec::new() };
+    let protected = crate::protect::Protected::from_env();
+    for item in items {
+        if protected.is_protected(item) {
+            ctx.rep.errors.push(format!("protegido por seguridad: {}", item.display()));
+            continue;
+        }
+        let Ok(meta) = fs::symlink_metadata(item) else {
+            ctx.rep.errors.push(format!("no existe: {}", item.display()));
+            continue;
+        };
+        if meta.file_type().is_symlink() {
+            ctx.rep.errors.push(format!("enlace simbólico, no se toca: {}", item.display()));
+        } else if meta.is_dir() {
+            // La raíz de la ruta relativa es el padre, para conservar el nombre de la carpeta.
+            let parent = item.parent().unwrap_or(item);
+            walk(item, parent, "space", &mut ctx);
+            let _ = fs::remove_dir(item); // solo si quedó vacía
+        } else {
+            let name = item.file_name().map(PathBuf::from).unwrap_or_default();
+            let stored = quarantine_dir.join(batch).join("space").join(name);
+            match move_file(item, &stored) {
+                Ok(()) => {
+                    ctx.rep.files += 1;
+                    ctx.rep.bytes += meta.len();
+                    ctx.entries.push(Entry { original: item.clone(), stored });
+                }
+                Err(e) => ctx.rep.errors.push(format!("{}: {e}", item.display())),
+            }
+        }
+    }
+    if !ctx.entries.is_empty() {
+        let mut rep = std::mem::take(&mut ctx.rep);
+        append_manifest(&quarantine_dir.join(batch), "space", &ctx.entries, &mut rep);
+        ctx.rep = rep;
+    }
+    ctx.rep
+}
+
 pub fn scan_rule(rule: &Rule) -> ScanResult {
     let r = run(rule, &Mode::DryRun);
     ScanResult { rule_id: r.rule_id, files: r.files, bytes: r.bytes }
@@ -350,5 +394,27 @@ mod tests {
         fs::set_permissions(&f, perms).unwrap();
         purge_batch(q.path(), "7").unwrap();
         assert!(!q.path().join("7").exists());
+    }
+
+    #[test]
+    fn quarantine_items_moves_files_and_folders_and_refuses_protected() {
+        let src = tempfile::tempdir().unwrap();
+        let q = tempfile::tempdir().unwrap();
+        fs::create_dir_all(src.path().join("dir/sub")).unwrap();
+        fs::write(src.path().join("dir/sub/a.bin"), vec![0u8; 10]).unwrap();
+        fs::write(src.path().join("big.iso"), vec![0u8; 5]).unwrap();
+
+        let items = vec![src.path().join("dir"), src.path().join("big.iso"), PathBuf::from("/")];
+        let rep = quarantine_items(&items, q.path(), "50");
+
+        assert_eq!((rep.files, rep.bytes), (2, 15));
+        assert_eq!(rep.errors.len(), 1, "la raíz se rechaza: {:?}", rep.errors);
+        assert!(!src.path().join("dir").exists() && !src.path().join("big.iso").exists());
+        assert!(q.path().join("50/space/dir/sub/a.bin").exists());
+        assert!(q.path().join("50/space/big.iso").exists());
+
+        let (restored, errors) = restore_batch(q.path(), "50");
+        assert_eq!((restored, errors.len()), (2, 0));
+        assert!(src.path().join("dir/sub/a.bin").exists());
     }
 }

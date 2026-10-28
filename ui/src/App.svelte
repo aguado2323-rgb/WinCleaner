@@ -68,7 +68,7 @@
         {#if view === 'clean'}
           <Clean {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
         {:else if view === 'space'}
-          <Space {notify} />
+          <Space {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
         {:else if view === 'startup'}
           <Startup {notify} />
         {:else if view === 'uninstall'}
