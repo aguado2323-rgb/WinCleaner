@@ -23,6 +23,7 @@ pub enum Reason {
     Cleaning,
     Debloat,
     Uninstall,
+    Tweaks,
 }
 
 impl Reason {
@@ -32,6 +33,7 @@ impl Reason {
             Reason::Cleaning => "WinCleaner - antes de limpiar",
             Reason::Debloat => "WinCleaner - antes de quitar aplicaciones",
             Reason::Uninstall => "WinCleaner - antes de desinstalar",
+            Reason::Tweaks => "WinCleaner - antes de aplicar ajustes",
         }
     }
 
@@ -41,6 +43,7 @@ impl Reason {
             "cleaning" => Some(Reason::Cleaning),
             "debloat" => Some(Reason::Debloat),
             "uninstall" => Some(Reason::Uninstall),
+            "tweaks" => Some(Reason::Tweaks),
             _ => None,
         }
     }
@@ -221,7 +224,7 @@ mod tests {
 
     #[test]
     fn reasons_are_a_closed_list_without_quotes() {
-        for r in ["manual", "cleaning", "debloat", "uninstall"] {
+        for r in ["manual", "cleaning", "debloat", "uninstall", "tweaks"] {
             let d = Reason::parse(r).unwrap().description();
             assert!(!d.contains('\'') && !d.contains('"') && !d.contains('`') && !d.contains('$'));
         }

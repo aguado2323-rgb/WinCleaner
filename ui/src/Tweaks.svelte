@@ -1,0 +1,143 @@
+<script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
+  import { invoke } from '@tauri-apps/api/core';
+
+  let { notify } = $props();
+
+  let items = $state([]);
+  let admin = $state(false);
+  let loading = $state(true);
+  let busy = $state({});
+  let makePoint = $state(true);
+  let pointTried = false;
+
+  let groups = $derived(
+    [...new Set(items.map((i) => i.category))].map((c) => [c, items.filter((i) => i.category === c)])
+  );
+  let appliedCount = $derived(items.filter((i) => i.applied).length);
+
+  const RESTART = {
+    explorer: 'Se nota al reiniciar el Explorador o volver a iniciar sesión.',
+    reboot: 'Se nota tras reiniciar el equipo.',
+  };
+
+  async function load() {
+    try {
+      [items, admin] = await Promise.all([invoke('tweaks_state'), invoke('app_is_admin')]);
+    } catch (e) {
+      notify('No se pudieron leer los ajustes: ' + e);
+    }
+    loading = false;
+  }
+
+  async function ensurePoint() {
+    if (!makePoint || pointTried || !admin) return;
+    pointTried = true;
+    try {
+      await invoke('restore_create', { reason: 'tweaks' });
+    } catch {
+      /* ya había uno reciente o la protección está apagada: cada ajuste es reversible igualmente */
+    }
+  }
+
+  async function toggle(t, enable) {
+    if (t.applied === enable) return;
+    busy[t.id] = true;
+    try {
+      if (enable) await ensurePoint();
+      await invoke('tweak_apply', { id: t.id, enable });
+      t.applied = enable;
+      const note = RESTART[t.restart];
+      notify(
+        `${t.name}: ${enable ? 'aplicado' : 'deshecho'}.${note ? ' ' + note : ''}`,
+        t.restart === 'explorer' ? { label: 'Reiniciar Explorador', run: () => invoke('restart_explorer') } : undefined
+      );
+    } catch (e) {
+      notify(String(e));
+    }
+    busy[t.id] = false;
+  }
+
+  load();
+</script>
+
+<p class="label">Ajustes</p>
+<h1 class="h1">Windows a tu manera.</h1>
+<p class="lede">Ajustes de privacidad, rendimiento e interfaz. Cada uno cambia solo unos valores concretos de Windows y se deshace con un clic, devolviendo lo que había antes. <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label="Cómo funcionan los ajustes" /></p>
+
+<section class="top">
+  <span class="big num">{appliedCount}<small>/{items.length}</small></span>
+  <span class="cap">ajustes aplicados</span>
+  <label class="pt">
+    <input type="checkbox" bind:checked={makePoint} />
+    <span class="box" aria-hidden="true"></span>
+    <span>Punto de restauración antes de empezar</span>
+  </label>
+  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label="Qué es un punto de restauración" />
+</section>
+{#if !loading && !admin}
+  <p class="note">Sin permisos de administrador: los ajustes marcados como «Admin» no se pueden cambiar. Puedes reiniciar como administrador desde «Restauración».</p>
+{/if}
+
+{#if loading}
+  <p class="empty num">···</p>
+{:else}
+  {#each groups as [cat, list] (cat)}
+    <div class="group"><h2 class="label">{cat}</h2><span class="num">{list.filter((t) => t.applied).length}/{list.length}</span></div>
+    <ul>
+      {#each list as t, n (t.id)}
+        <li style="animation-delay:{n * 18}ms" class:on={t.applied}>
+          <div class="txt">
+            <span class="top2">
+              <b>{t.name}</b>
+              {#if t.risk === 'care'}<span class="tag label warn">Con cuidado</span>{/if}
+              {#if t.needs_admin}<span class="tag label">Admin</span>{/if}
+            </span>
+            <small>{t.what}</small>
+          </div>
+          <Help text={t.help + (RESTART[t.restart] ? ' ' + RESTART[t.restart] : '')} risk={t.risk === 'care' ? 'care' : 'reversible'} label="Qué hace {t.name}" />
+          <div class="seg" role="group" aria-label={t.name}>
+            <button class:on={t.applied} disabled={busy[t.id] || (t.needs_admin && !admin)} aria-pressed={t.applied} onclick={() => toggle(t, true)}>Sí</button>
+            <button class:on={!t.applied} disabled={busy[t.id] || (t.needs_admin && !admin)} aria-pressed={!t.applied} onclick={() => toggle(t, false)}>No</button>
+          </div>
+        </li>
+      {/each}
+    </ul>
+  {/each}
+{/if}
+
+<style>
+  .h1 { margin-top: 10px; }
+  .top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px; margin: 26px 0 6px; }
+  .big { font-size: 64px; font-weight: 500; letter-spacing: -0.06em; line-height: 1; }
+  .big small { font-size: 26px; color: var(--ink-3); letter-spacing: -0.03em; }
+  .cap { flex: 1; color: var(--ink-2); }
+  .pt { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; }
+  .pt input { position: absolute; opacity: 0; pointer-events: none; }
+  .box { flex: none; position: relative; width: 16px; height: 16px; border: 1.5px solid var(--ink); border-radius: 2px; }
+  input:checked + .box { background: var(--accent); }
+  input:checked + .box::after { content: ''; position: absolute; left: 4px; top: 0; width: 4px; height: 9px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: rotate(40deg); }
+  input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .note { margin: 8px 0 0; padding: 10px 12px; border-left: 4px solid var(--accent); color: var(--ink-2); font-size: 13px; line-height: 1.5; }
+
+  .group { display: flex; align-items: baseline; justify-content: space-between; margin: 30px 0 4px; padding-bottom: 8px; border-bottom: 1px solid var(--ink); }
+  .group h2 { margin: 0; color: var(--ink); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 14px; padding: 12px 2px; border-bottom: 1px solid var(--rule); animation: line 0.22s both; }
+  .txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .top2 { display: flex; align-items: baseline; gap: 10px; }
+  .top2 b { font-weight: 600; font-size: 14.5px; }
+  small { color: var(--ink-3); font-size: 12.5px; }
+  .tag { font-size: 10px; }
+  .tag.warn { color: var(--accent); }
+
+  .seg { display: flex; flex: none; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden; }
+  .seg button { border: 0; background: none; padding: 6px 13px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); transition: background 0.1s; }
+  .seg button + button { border-left: 1px solid var(--ink); }
+  .seg button:hover:not(.on):not(:disabled) { background: var(--paper-2); color: var(--ink); }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+  .seg button.on:first-child { background: var(--accent); color: var(--on-accent); }
+  .seg button:disabled { opacity: 0.45; cursor: default; }
+  .empty { padding: 50px 0; color: var(--ink-2); font-size: 15px; }
+</style>

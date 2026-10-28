@@ -91,6 +91,14 @@ export const H = {
     text: 'Guarda una foto de la configuración de Windows antes de quitar apps. Ojo: las apps de la Tienda no vuelven con el punto de restauración, se reinstalan desde Microsoft Store.',
   },
 
+  tweakToggle: {
+    risk: 'reversible',
+    text: '«Sí» aplica el ajuste y «No» lo deshace dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
+  },
+  tweakPoint: {
+    risk: 'safe',
+    text: 'Guarda una foto de la configuración de Windows antes del primer ajuste de esta sesión, por si quieres volver a ella desde «Restauración». Pide administrador y Windows solo permite un punto cada 24 horas; si no se puede crear, los ajustes se aplican igualmente porque cada uno se puede deshacer.',
+  },
   restoreCreate: {
     risk: 'safe',
     text: 'Guarda una foto de la configuración de Windows (registro, controladores, ajustes) para poder volver a este momento. No copia tus documentos ni fotos. Requiere administrador y Windows solo permite uno cada 24 horas.',

@@ -6,6 +6,7 @@ mod debloat;
 mod disk;
 mod restore;
 mod startup;
+mod tweaks;
 mod uninstall;
 mod rules;
 
@@ -25,3 +26,4 @@ pub use uninstall::{
     find_leftovers, list_programs, remove_leftovers, restore_registry, uninstall_program, Leftover,
     LeftoverKind, LeftoverOutcome, Program, UninstallOutcome,
 };
+pub use tweaks::{tweak_set, tweaks_list, TweakInfo};
