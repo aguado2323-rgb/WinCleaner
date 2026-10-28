@@ -2,6 +2,7 @@
 //! Solo lectura; no toca nada del sistema.
 
 use serde::Serialize;
+use std::time::{Duration, Instant};
 use sysinfo::{Components, Disks, System};
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +43,9 @@ pub struct Live {
 /// Guarda el estado entre muestras: la CPU se mide entre dos lecturas seguidas.
 pub struct Monitor {
     sys: System,
+    // Lecturas lentas (PowerShell, nvidia-smi): se repiten cada pocos segundos, no en cada muestra.
+    extra: Vec<Temp>,
+    extra_at: Option<Instant>,
 }
 
 impl Default for Monitor {
@@ -55,7 +59,7 @@ impl Monitor {
         let mut sys = System::new();
         sys.refresh_cpu_usage();
         sys.refresh_memory();
-        Monitor { sys }
+        Monitor { sys, extra: Vec::new(), extra_at: None }
     }
 
     pub fn specs(&mut self) -> Specs {
@@ -81,9 +85,28 @@ impl Monitor {
             ram_used: self.sys.used_memory(),
             ram_total: self.sys.total_memory(),
             disks: disk_list(&disks),
-            temps: read_temps(),
+            temps: self.temps(),
             uptime: System::uptime(),
         }
+    }
+}
+
+impl Monitor {
+    /// Sensores del propio sistema y, si no hay o además, las lecturas alternativas (zonas térmicas de
+    /// Windows y tarjeta NVIDIA). Cuando no se encontró nada se vuelve a intentar solo cada minuto.
+    fn temps(&mut self) -> Vec<Temp> {
+        let mut out = read_temps();
+        let wait = Duration::from_secs(if self.extra.is_empty() { 60 } else { 6 });
+        if self.extra_at.is_none_or(|t| t.elapsed() >= wait) {
+            self.extra = std::panic::catch_unwind(imp::extra_temps).unwrap_or_default();
+            self.extra_at = Some(Instant::now());
+        }
+        for t in &self.extra {
+            if !out.iter().any(|o| o.label == t.label) {
+                out.push(t.clone());
+            }
+        }
+        out
     }
 }
 
@@ -118,10 +141,29 @@ fn temp_list(comps: &Components) -> Vec<Temp> {
 
 #[cfg(windows)]
 mod imp {
+    use super::Temp;
     use std::os::windows::process::CommandExt;
     use std::process::Command;
 
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    fn run(program: &str, args: &[&str]) -> Option<String> {
+        let out = Command::new(program).args(args).creation_flags(CREATE_NO_WINDOW).output().ok()?;
+        out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+
+    /// Zonas térmicas ACPI del contador de rendimiento (no pide administrador) y temperatura de NVIDIA.
+    pub fn extra_temps() -> Vec<Temp> {
+        let mut out = Vec::new();
+        let zones = "Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation | ForEach-Object { $_.Name + '|' + $_.Temperature }";
+        if let Some(text) = run("powershell", &["-NoProfile", "-NonInteractive", "-Command", zones]) {
+            out.extend(super::parse_thermal_zones(&text));
+        }
+        if let Some(text) = run("nvidia-smi", &["--query-gpu=name,temperature.gpu", "--format=csv,noheader,nounits"]) {
+            out.extend(super::parse_nvidia(&text));
+        }
+        out
+    }
 
     pub fn gpus() -> Vec<String> {
         let out = Command::new("powershell")
@@ -137,9 +179,40 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
+    use super::Temp;
+
     pub fn gpus() -> Vec<String> {
         Vec::new()
     }
+
+    pub fn extra_temps() -> Vec<Temp> {
+        Vec::new()
+    }
+}
+
+/// `nombre|kelvin` por línea → grados Celsius. Descarta lecturas imposibles (0 K, sensores sin dato).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_thermal_zones(text: &str) -> Vec<Temp> {
+    text.lines()
+        .filter_map(|l| {
+            let (name, kelvin) = l.trim().rsplit_once('|')?;
+            let celsius = kelvin.trim().parse::<f32>().ok()? - 273.15;
+            let zone = name.rsplit(['.', '\\']).next().unwrap_or(name).trim();
+            (celsius > 0.0 && celsius < 150.0).then(|| Temp { label: format!("ACPI {zone}"), celsius })
+        })
+        .collect()
+}
+
+/// `nombre, grados` por línea (salida CSV de `nvidia-smi`). `[N/A]` o texto raro se ignora.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_nvidia(text: &str) -> Vec<Temp> {
+    text.lines()
+        .filter_map(|l| {
+            let (name, deg) = l.trim().rsplit_once(',')?;
+            let celsius = deg.trim().parse::<f32>().ok()?;
+            (celsius > 0.0 && celsius < 150.0).then(|| Temp { label: format!("GPU {}", name.trim().trim_start_matches("NVIDIA ").trim()), celsius })
+        })
+        .collect()
 }
 
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -165,6 +238,17 @@ mod tests {
         let l = m.sample();
         assert!(l.ram_used <= l.ram_total);
         assert!((0.0..=100.0).contains(&l.cpu));
+    }
+
+    #[test]
+    fn parses_thermal_zones_and_nvidia() {
+        let z = parse_thermal_zones("\\_TZ.TZ00|300\r\n\\_TZ.THRM|0\r\nbasura\r\n");
+        assert_eq!(z.len(), 1);
+        assert_eq!(z[0].label, "ACPI TZ00");
+        assert!((z[0].celsius - 26.85).abs() < 0.1);
+        let g = parse_nvidia("NVIDIA GeForce RTX 3070, 54\n");
+        assert_eq!((g[0].label.as_str(), g[0].celsius), ("GPU GeForce RTX 3070", 54.0));
+        assert!(parse_nvidia("NVIDIA GeForce RTX 3070, [N/A]\n").is_empty());
     }
 
     #[test]
