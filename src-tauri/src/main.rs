@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
     builtin_rules, clean_rule, drives, list_batches, purge_batch, restore_batch, scan_dir,
-    scan_rule, BatchInfo, CleanReport, DirReport, Mode, Rule, ScanResult,
+    scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode, Rule, ScanResult, StartupItem,
 };
 
 #[derive(Serialize)]
@@ -136,9 +136,19 @@ fn reveal(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn startup_items() -> Vec<StartupItem> {
+    startup_list()
+}
+
+#[tauri::command]
+fn startup_set(id: String, enabled: bool) -> Result<(), String> {
+    startup_set_enabled(&id, enabled)
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

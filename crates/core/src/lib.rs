@@ -3,6 +3,7 @@
 
 mod clean;
 mod disk;
+mod startup;
 mod rules;
 
 pub use clean::{
@@ -11,3 +12,4 @@ pub use clean::{
 };
 pub use rules::{builtin_rules, expand_env, Rule};
 pub use disk::{drives, scan_dir, Child, DirReport, FileEntry};
+pub use startup::{list as startup_list, set_enabled as startup_set_enabled, StartupItem};

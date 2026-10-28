@@ -4,6 +4,7 @@
   import Clean from './Clean.svelte';
   import Quarantine from './Quarantine.svelte';
   import Space from './Space.svelte';
+  import Startup from './Startup.svelte';
 
   let view = $state('clean');
   let q = $state({ path: '', batches: [] });
@@ -45,7 +46,9 @@
       <button class:active={view === 'space'} onclick={() => (view = 'space')}>
         <Icon name="pie" /> Espacio
       </button>
-      <button disabled><Icon name="power" /> Arranque <span class="soon">Pronto</span></button>
+      <button class:active={view === 'startup'} onclick={() => (view = 'startup')}>
+        <Icon name="power" /> Arranque
+      </button>
     </nav>
 
     <p class="promise"><Icon name="lock" size={14} /> Sin anuncios · sin telemetría<br />Código abierto (MIT)</p>
@@ -58,6 +61,8 @@
           <Clean {notify} {refreshQuarantine} openQuarantine={() => { view = 'quarantine'; refreshQuarantine(); }} />
         {:else if view === 'space'}
           <Space {notify} />
+        {:else if view === 'startup'}
+          <Startup {notify} />
         {:else}
           <Quarantine {q} {notify} {refreshQuarantine} />
         {/if}
@@ -85,7 +90,6 @@
   nav button.active { background: var(--hairline); color: var(--ink); box-shadow: inset 2px 0 0 var(--blue); }
   nav button:disabled { opacity: 0.5; cursor: default; }
   .badge { margin-left: auto; font-size: 11px; font-weight: 600; background: var(--blue); color: #06121a; border-radius: 99px; padding: 1px 7px; }
-  .soon { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ash); }
   .promise { margin: auto 10px 0; font-size: 11.5px; line-height: 1.6; color: var(--ash); }
   .promise :global(svg) { vertical-align: -2px; margin-right: 4px; }
   main { overflow-y: auto; }
