@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -13,7 +14,7 @@
     try {
       plans = await invoke('power_list');
     } catch (e) {
-      notify('No se pudieron leer los planes de energía: ' + e);
+      notify(t('No se pudieron leer los planes de energía: ') + e);
     }
     loading = false;
   }
@@ -22,7 +23,7 @@
     busy = true;
     try {
       await invoke('power_activate', { guid: p.guid });
-      notify(`Plan activo: ${p.name}`);
+      notify(t('Plan activo: {n}', { n: p.name }));
     } catch (e) {
       notify(String(e));
     }
@@ -34,7 +35,7 @@
     busy = true;
     try {
       await invoke('power_ultimate');
-      notify('Plan «Máximo rendimiento» añadido. Actívalo desde la lista.');
+      notify(t('Plan «Máximo rendimiento» añadido. Actívalo desde la lista.'));
     } catch (e) {
       notify(String(e));
     }
@@ -45,9 +46,9 @@
   load();
 </script>
 
-<p class="label">Energía</p>
-<h1 class="h1">Rendimiento o batería.</h1>
-<p class="lede">Elige el plan de energía de Windows. Cambiar es inmediato y siempre puedes volver al anterior. <Help text={H.powerInfo.text} risk={H.powerInfo.risk} label="Qué es un plan de energía" /></p>
+<p class="label">{t('Energía')}</p>
+<h1 class="h1">{t('Rendimiento o batería.')}</h1>
+<p class="lede">{t('Elige el plan de energía de Windows. Cambiar es inmediato y siempre puedes volver al anterior.')} <Help text={H.powerInfo.text} risk={H.powerInfo.risk} label={t('Qué es un plan de energía')} /></p>
 
 {#if loading}
   <p class="empty num">···</p>
@@ -56,14 +57,14 @@
     {#each plans as p, n (p.guid)}
       <li class:on={p.active} style="animation-delay:{n * 18}ms">
         <span class="txt"><b>{p.name}</b></span>
-        <span class="state label" class:on={p.active}>{p.active ? 'Activo' : ''}</span>
-        <button class="act" disabled={busy || p.active} onclick={() => activate(p)}>{p.active ? 'En uso' : 'Activar'}</button>
+        <span class="state label" class:on={p.active}>{p.active ? t('Activo') : ''}</span>
+        <button class="act" disabled={busy || p.active} onclick={() => activate(p)}>{p.active ? t('En uso') : t('Activar')}</button>
       </li>
     {/each}
   </ul>
   <div class="more">
-    <button class="btn" disabled={busy} onclick={addUltimate}>Añadir «Máximo rendimiento»</button>
-    <Help text={H.powerUltimate.text} risk={H.powerUltimate.risk} label="Qué es Máximo rendimiento" />
+    <button class="btn" disabled={busy} onclick={addUltimate}>{t('Añadir «Máximo rendimiento»')}</button>
+    <Help text={H.powerUltimate.text} risk={H.powerUltimate.risk} label={t('Qué es Máximo rendimiento')} />
   </div>
 {/if}
 

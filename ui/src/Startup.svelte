@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -19,7 +20,7 @@
     try {
       items = await invoke('startup_items');
     } catch (e) {
-      notify('No se pudo leer el arranque: ' + e);
+      notify(t('No se pudo leer el arranque: ') + e);
     }
     loading = false;
   }
@@ -30,13 +31,13 @@
     item.enabled = enabled; // respuesta inmediata; se revierte si falla
     try {
       await invoke('startup_set', { id: item.id, enabled });
-      notify(enabled ? `${item.name} volverá a iniciarse con Windows` : `${item.name} ya no se iniciará con Windows`, {
-        label: 'Deshacer',
+      notify(enabled ? t('{n} volverá a iniciarse con Windows', { n: item.name }) : t('{n} ya no se iniciará con Windows', { n: item.name }), {
+        label: t('Deshacer'),
         run: () => toggle(item),
       });
     } catch (e) {
       item.enabled = !enabled;
-      notify(item.needs_admin ? 'Esta entrada es del sistema: ejecuta WinCleaner como administrador para cambiarla.' : 'No se pudo cambiar: ' + e);
+      notify(item.needs_admin ? t('Esta entrada es del sistema: ejecuta WinCleaner como administrador para cambiarla.') : t('No se pudo cambiar: ') + e);
     }
     busy[item.id] = false;
   }
@@ -44,24 +45,24 @@
   load();
 </script>
 
-<p class="label">Arranque</p>
-<h1 class="h1">Lo que arranca con Windows.</h1>
-<p class="lede">Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras. <Help text={H.startupToggle.text} risk={H.startupToggle.risk} label="Qué hace Sí/No" /></p>
+<p class="label">{t('Arranque')}</p>
+<h1 class="h1">{t('Lo que arranca con Windows.')}</h1>
+<p class="lede">{t('Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras.')} <Help text={H.startupToggle.text} risk={H.startupToggle.risk} label={t('Qué hace Sí/No')} /></p>
 
 <section class="summary">
   <span class="big num">{active}<small>/{items.length}</small></span>
-  <span class="cap">se inician con Windows</span>
+  <span class="cap">{t('se inician con Windows')}</span>
   <div class="tabs" role="tablist">
-    <button role="tab" aria-selected={filter === 'all'} class:on={filter === 'all'} onclick={() => (filter = 'all')}>Todos</button>
-    <button role="tab" aria-selected={filter === 'on'} class:on={filter === 'on'} onclick={() => (filter = 'on')}>Activos</button>
-    <button role="tab" aria-selected={filter === 'off'} class:on={filter === 'off'} onclick={() => (filter = 'off')}>Desactivados</button>
+    <button role="tab" aria-selected={filter === 'all'} class:on={filter === 'all'} onclick={() => (filter = 'all')}>{t('Todos')}</button>
+    <button role="tab" aria-selected={filter === 'on'} class:on={filter === 'on'} onclick={() => (filter = 'on')}>{t('Activos')}</button>
+    <button role="tab" aria-selected={filter === 'off'} class:on={filter === 'off'} onclick={() => (filter = 'off')}>{t('Desactivados')}</button>
   </div>
 </section>
 
 {#if loading}
   <p class="empty num">···</p>
 {:else if !shown.length}
-  <p class="empty">{items.length ? 'Nada en esta lista.' : 'Windows no ha encontrado programas de arranque.'}</p>
+  <p class="empty">{items.length ? t('Nada en esta lista.') : t('Windows no ha encontrado programas de arranque.')}</p>
 {:else}
   <ul>
     {#each shown as item, i (item.id)}
@@ -69,14 +70,14 @@
         <div class="txt">
           <span class="top">
             <b>{item.name}</b>
-            <span class="tag label">{item.source}</span>
-            <Help text={item.needs_admin ? H.startupMachine.text : item.source.toLowerCase().includes('carpeta') ? H.startupFolder.text : H.startupUser.text} risk={item.needs_admin ? 'care' : 'reversible'} label="Qué es {item.name}" />
+            <span class="tag label">{t(item.source)}</span>
+            <Help text={item.needs_admin ? H.startupMachine.text : item.source.toLowerCase().includes('carpeta') ? H.startupFolder.text : H.startupUser.text} risk={item.needs_admin ? 'care' : 'reversible'} label={t('Qué es {n}', { n: item.name })} />
           </span>
-          <small title={item.command}>{item.command || 'Sin comando'}</small>
+          <small title={item.command}>{item.command || t('Sin comando')}</small>
         </div>
-        <div class="seg" role="group" aria-label="Iniciar {item.name} con Windows">
-          <button class:on={item.enabled} disabled={busy[item.id]} aria-pressed={item.enabled} onclick={() => !item.enabled && toggle(item)}>Sí</button>
-          <button class:on={!item.enabled} disabled={busy[item.id]} aria-pressed={!item.enabled} onclick={() => item.enabled && toggle(item)}>No</button>
+        <div class="seg" role="group" aria-label={t('Iniciar {n} con Windows', { n: item.name })}>
+          <button class:on={item.enabled} disabled={busy[item.id]} aria-pressed={item.enabled} onclick={() => !item.enabled && toggle(item)}>{t('Sí')}</button>
+          <button class:on={!item.enabled} disabled={busy[item.id]} aria-pressed={!item.enabled} onclick={() => item.enabled && toggle(item)}>{t('No')}</button>
         </div>
       </li>
     {/each}

@@ -1,8 +1,10 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
   import { fmt } from './format.js';
+  import { i18n } from './i18n.svelte.js';
 
   let { notify, refreshQuarantine, openQuarantine } = $props();
 
@@ -20,7 +22,7 @@
   let old = $state([]);
   let picked = $state({});
 
-  const DAY = (s) => (s ? new Date(s * 1000).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '') : '—');
+  const DAY = (s) => (s ? new Date(s * 1000).toLocaleDateString(i18n.locale, { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '') : '—');
   const name = (p) => p.split(/[\\/]/).pop();
   const dir = (p) => p.slice(0, Math.max(0, p.length - name(p).length - 1));
 
@@ -36,7 +38,7 @@
       folders = await invoke('dup_folders');
       chosen = Object.fromEntries(folders.filter((f) => ['downloads', 'documents', 'desktop'].includes(f.id)).map((f) => [f.id, true]));
     } catch (e) {
-      notify('No se pudieron leer las carpetas: ' + e);
+      notify(t('No se pudieron leer las carpetas: ') + e);
     }
   }
 
@@ -54,15 +56,15 @@
       }
       phase = 'done';
     } catch (e) {
-      notify('No se pudo buscar: ' + e);
+      notify(t('No se pudo buscar: ') + e);
       phase = 'idle';
     }
   }
 
-  function switchTab(t) {
-    tab = t;
+  function switchTab(which) {
+    tab = which;
     phase = 'idle';
-    minMb = t === 'dups' ? 10 : 500;
+    minMb = which === 'dups' ? 10 : 500;
   }
 
   async function moveDuplicates() {
@@ -74,14 +76,14 @@
         remove: g.files.filter((_, i) => i !== g.keep).map((f) => f.path),
       }));
       const rep = await invoke('dup_quarantine', { selection });
-      notify(`${rep.files} copias a la cuarentena (${fmt(rep.bytes)})` + (rep.errors.length ? ` · ${rep.errors.length} no se tocaron` : ''), {
-        label: 'Ver cuarentena',
+      notify(t('{n} copias a la cuarentena ({b})', { n: rep.files, b: fmt(rep.bytes) }) + (rep.errors.length ? ' · ' + t('{n} no se tocaron', { n: rep.errors.length }) : ''), {
+        label: t('Ver cuarentena'),
         run: openQuarantine,
       });
       await refreshQuarantine();
       await search();
     } catch (e) {
-      notify('No se pudo mover: ' + e);
+      notify(t('No se pudo mover: ') + e);
     }
     working = false;
   }
@@ -91,54 +93,54 @@
     working = true;
     try {
       const rep = await invoke('space_quarantine', { paths: oldPicked.map((f) => f.path) });
-      notify(`${rep.files} archivos a la cuarentena (${fmt(rep.bytes)})` + (rep.errors.length ? ` · ${rep.errors.length} no se tocaron` : ''), {
-        label: 'Ver cuarentena',
+      notify(t('{n} archivos a la cuarentena ({b})', { n: rep.files, b: fmt(rep.bytes) }) + (rep.errors.length ? ' · ' + t('{n} no se tocaron', { n: rep.errors.length }) : ''), {
+        label: t('Ver cuarentena'),
         run: openQuarantine,
       });
       await refreshQuarantine();
       await search();
     } catch (e) {
-      notify('No se pudo mover: ' + e);
+      notify(t('No se pudo mover: ') + e);
     }
     working = false;
   }
 
-  const reveal = (path) => invoke('reveal', { path }).catch((e) => notify('No se pudo abrir: ' + e));
+  const reveal = (path) => invoke('reveal', { path }).catch((e) => notify(t('No se pudo abrir: ') + e));
 
   init();
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
 
-<p class="label">Duplicados</p>
-<h1 class="h1">{tab === 'dups' ? 'Lo mismo, más de una vez.' : 'Grande y olvidado.'}</h1>
+<p class="label">{t('Duplicados')}</p>
+<h1 class="h1">{tab === 'dups' ? t('Lo mismo, más de una vez.') : t('Grande y olvidado.')}</h1>
 <p class="lede">
   {#if tab === 'dups'}
-    Busca archivos idénticos (se comparan por contenido, no por nombre) en tus carpetas. Eliges qué copia se queda y el resto va a la cuarentena.
+    {t('Busca archivos idénticos (se comparan por contenido, no por nombre) en tus carpetas. Eliges qué copia se queda y el resto va a la cuarentena.')}
   {:else}
-    Archivos pesados que llevan tiempo sin modificarse: instaladores, ISOs, vídeos viejos. Tú decides cuáles se van a la cuarentena.
+    {t('Archivos pesados que llevan tiempo sin modificarse: instaladores, ISOs, vídeos viejos. Tú decides cuáles se van a la cuarentena.')}
   {/if}
-  <Help text={tab === 'dups' ? H.dupInfo.text : H.oldInfo.text} risk="safe" label="Cómo funciona" />
+  <Help text={tab === 'dups' ? H.dupInfo.text : H.oldInfo.text} risk="safe" label={t('Cómo funciona')} />
 </p>
 
 <div class="tabs">
-  <button class:on={tab === 'dups'} onclick={() => switchTab('dups')}>Duplicados</button>
-  <button class:on={tab === 'old'} onclick={() => switchTab('old')}>Grandes y antiguos</button>
+  <button class:on={tab === 'dups'} onclick={() => switchTab('dups')}>{t('Duplicados')}</button>
+  <button class:on={tab === 'old'} onclick={() => switchTab('old')}>{t('Grandes y antiguos')}</button>
 </div>
 
 <section class="setup">
-  <div class="folders" role="group" aria-label="Carpetas a revisar">
+  <div class="folders" role="group" aria-label={t('Carpetas a revisar')}>
     {#each folders as f (f.id)}
       <label class="chk">
         <input type="checkbox" bind:checked={chosen[f.id]} />
         <span class="box" aria-hidden="true"></span>
-        <span>{f.name}</span>
+        <span>{t(f.name)}</span>
       </label>
     {/each}
   </div>
   <div class="opts">
     <label>
-      Tamaño mínimo
+      {t('Tamaño mínimo')}
       <select bind:value={minMb}>
         {#if tab === 'dups'}
           <option value={1}>1 MB</option>
@@ -153,16 +155,16 @@
     </label>
     {#if tab === 'old'}
       <label>
-        Sin tocar desde hace
+        {t('Sin tocar desde hace')}
         <select bind:value={days}>
-          <option value={180}>6 meses</option>
-          <option value={365}>1 año</option>
-          <option value={730}>2 años</option>
+          <option value={180}>{t('6 meses')}</option>
+          <option value={365}>{t('1 año')}</option>
+          <option value={730}>{t('2 años')}</option>
         </select>
       </label>
     {/if}
     <button class="btn primary" disabled={!anyFolder || phase === 'scanning'} onclick={search}>
-      {phase === 'scanning' ? 'Buscando…' : phase === 'done' ? 'Buscar de nuevo' : 'Buscar'}
+      {phase === 'scanning' ? t('Buscando…') : phase === 'done' ? t('Buscar de nuevo') : t('Buscar')}
     </button>
   </div>
 </section>
@@ -171,12 +173,12 @@
   <p class="empty num">···</p>
 {:else if phase === 'done' && tab === 'dups'}
   {#if !groups.length}
-    <p class="empty">No hay duplicados de ese tamaño en las carpetas elegidas. {report ? `Se revisaron ${report.scanned.toLocaleString('es-ES')} archivos.` : ''}</p>
+    <p class="empty">{t('No hay duplicados de ese tamaño en las carpetas elegidas.')} {report ? t('Se revisaron {n} archivos.', { n: report.scanned.toLocaleString(i18n.locale) }) : ''}</p>
   {:else}
     <section class="sum">
       <span class="big num">{fmt(removeBytes)}</span>
-      <span class="cap">recuperables · {groups.length} grupos · {removeCount} copias a quitar</span>
-      <button class="btn primary" disabled={!removeCount || working} onclick={() => (confirming = true)}>Mover a la cuarentena</button>
+      <span class="cap">{t('recuperables · {g} grupos · {c} copias a quitar', { g: groups.length, c: removeCount })}</span>
+      <button class="btn primary" disabled={!removeCount || working} onclick={() => (confirming = true)}>{t('Mover a la cuarentena')}</button>
     </section>
     <ul class="groups">
       {#each groups as g, gi (gi)}
@@ -194,11 +196,11 @@
               <label class="pick">
                 <input type="radio" name={'g' + gi} checked={g.keep === fi} onchange={() => (g.keep = fi)} />
                 <span class="rb" aria-hidden="true"></span>
-                <span class="tag label">{g.keep === fi ? 'Se queda' : 'Se quita'}</span>
+                <span class="tag label">{g.keep === fi ? t('Se queda') : t('Se quita')}</span>
               </label>
               <span class="path" title={f.path}>{f.path}</span>
               <span class="num dt">{DAY(f.modified)}</span>
-              <button class="link" onclick={() => reveal(f.path)}>Mostrar</button>
+              <button class="link" onclick={() => reveal(f.path)}>{t('Mostrar')}</button>
             </div>
           {/each}
         </li>
@@ -207,12 +209,12 @@
   {/if}
 {:else if phase === 'done'}
   {#if !old.length}
-    <p class="empty">No hay archivos tan grandes y tan antiguos en las carpetas elegidas.</p>
+    <p class="empty">{t('No hay archivos tan grandes y tan antiguos en las carpetas elegidas.')}</p>
   {:else}
     <section class="sum">
       <span class="big num">{fmt(oldBytes)}</span>
-      <span class="cap">seleccionados · {oldPicked.length} de {old.length}</span>
-      <button class="btn primary" disabled={!oldPicked.length || working} onclick={() => (confirming = true)}>Mover a la cuarentena</button>
+      <span class="cap">{t('seleccionados · {a} de {b}', { a: oldPicked.length, b: old.length })}</span>
+      <button class="btn primary" disabled={!oldPicked.length || working} onclick={() => (confirming = true)}>{t('Mover a la cuarentena')}</button>
     </section>
     <ul class="old">
       {#each old as f (f.path)}
@@ -224,7 +226,7 @@
           </label>
           <span class="num dt">{DAY(f.modified)}</span>
           <span class="num sz">{fmt(f.bytes)}</span>
-          <button class="link" onclick={() => reveal(f.path)}>Mostrar</button>
+          <button class="link" onclick={() => reveal(f.path)}>{t('Mostrar')}</button>
         </li>
       {/each}
     </ul>
@@ -233,18 +235,18 @@
 
 {#if confirming}
   <div class="overlay" role="presentation" onclick={() => (confirming = false)}>
-    <div class="dialog" role="dialog" aria-modal="true" aria-label="Confirmar" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-      <h3>¿Mover a la cuarentena?</h3>
+    <div class="dialog" role="dialog" aria-modal="true" aria-label={t('Confirmar')} tabindex="-1" onclick={(e) => e.stopPropagation()}>
+      <h3>{t('¿Mover a la cuarentena?')}</h3>
       <p>
         {#if tab === 'dups'}
-          {removeCount} copias ({fmt(removeBytes)}) irán a la cuarentena. De cada grupo se conserva la copia marcada «Se queda». Puedes restaurarlas desde Cuarentena.
+          {t('{n} copias ({b}) irán a la cuarentena. De cada grupo se conserva la copia marcada «Se queda». Puedes restaurarlas desde Cuarentena.', { n: removeCount, b: fmt(removeBytes) })}
         {:else}
-          {oldPicked.length} archivos ({fmt(oldBytes)}) irán a la cuarentena. Puedes restaurarlos desde Cuarentena.
+          {t('{n} archivos ({b}) irán a la cuarentena. Puedes restaurarlos desde Cuarentena.', { n: oldPicked.length, b: fmt(oldBytes) })}
         {/if}
       </p>
       <div class="row">
-        <button class="btn" onclick={() => (confirming = false)}>Cancelar</button>
-        <button class="btn primary" onclick={tab === 'dups' ? moveDuplicates : moveOld}>Mover</button>
+        <button class="btn" onclick={() => (confirming = false)}>{t('Cancelar')}</button>
+        <button class="btn primary" onclick={tab === 'dups' ? moveDuplicates : moveOld}>{t('Mover')}</button>
       </div>
     </div>
   </div>

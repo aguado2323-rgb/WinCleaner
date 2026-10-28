@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { fmt, fmtDate } from './format.js';
@@ -12,7 +13,7 @@
   let last = $state(null);
   let busy = $state(false);
 
-  const FREQ = [['daily', 'Cada día'], ['weekly', 'Cada semana'], ['monthly', 'Cada mes']];
+  const FREQ = [['daily', 'Cada día'], ['weekly', 'Cada semana'], ['monthly', 'Cada mes']]; // se traducen al mostrarlas
   const MODE = [['clean', 'Limpiar'], ['notify', 'Solo avisar']];
   const PURGE = [[0, 'Nunca'], [7, '7 días'], [30, '30 días'], [90, '90 días']];
 
@@ -27,7 +28,7 @@
       exe = st.exe;
       last = st.last;
     } catch (e) {
-      notify('No se pudo leer la programación: ' + e);
+      notify(t('No se pudo leer la programación: ') + e);
     }
   }
 
@@ -36,7 +37,7 @@
     try {
       await invoke('schedule_apply', { config: cfg });
       task = cfg.enabled;
-      notify(cfg.enabled ? 'Limpieza programada.' : 'Programación desactivada.');
+      notify(cfg.enabled ? t('Limpieza programada.') : t('Programación desactivada.'));
     } catch (e) {
       notify(String(e));
       await load();
@@ -49,7 +50,7 @@
     try {
       last = await invoke('schedule_now', { config: cfg });
       refreshQuarantine?.();
-      notify(cfg.mode === 'clean' ? `Hecho: ${fmt(last.bytes)} a la cuarentena.` : `Se podrían recuperar ${fmt(last.bytes)}.`);
+      notify(cfg.mode === 'clean' ? t('Hecho: {b} a la cuarentena.', { b: fmt(last.bytes) }) : t('Se podrían recuperar {b}.', { b: fmt(last.bytes) }));
     } catch (e) {
       notify(String(e));
     }
@@ -59,9 +60,9 @@
   load();
 </script>
 
-<p class="label">Programación</p>
-<h1 class="h1">Que se limpie solo.</h1>
-<p class="lede">WinCleaner puede hacer una limpieza segura a la hora que elijas, sin abrir ventana, y avisarte cuando acabe. Todo va a la cuarentena. <Help text={H.schedAuto.text} risk={H.schedAuto.risk} label="Cómo funciona la programación" /></p>
+<p class="label">{t('Programación')}</p>
+<h1 class="h1">{t('Que se limpie solo.')}</h1>
+<p class="lede">{t('WinCleaner puede hacer una limpieza segura a la hora que elijas, sin abrir ventana, y avisarte cuando acabe. Todo va a la cuarentena.')} <Help text={H.schedAuto.text} risk={H.schedAuto.risk} label={t('Cómo funciona la programación')} /></p>
 
 {#if !cfg}
   <p class="empty num">···</p>
@@ -70,56 +71,56 @@
     <label class="row">
       <input type="checkbox" bind:checked={cfg.enabled} onchange={save} disabled={busy} />
       <span class="box" aria-hidden="true"></span>
-      <span><b>Limpiar automáticamente</b><small>{task ? 'Tarea activa en Windows' : 'Desactivado'}</small></span>
+      <span><b>{t('Limpiar automáticamente')}</b><small>{task ? t('Tarea activa en Windows') : t('Desactivado')}</small></span>
     </label>
 
     <div class="grid" class:off={!cfg.enabled}>
       <div class="f">
-        <span class="label">Frecuencia</span>
+        <span class="label">{t('Frecuencia')}</span>
         <div class="seg">
           {#each FREQ as [v, l]}
-            <button class:on={cfg.freq === v} disabled={busy || !cfg.enabled} onclick={() => { cfg.freq = v; save(); }}>{l}</button>
+            <button class:on={cfg.freq === v} disabled={busy || !cfg.enabled} onclick={() => { cfg.freq = v; save(); }}>{t(l)}</button>
           {/each}
         </div>
       </div>
       <div class="f">
-        <span class="label">Hora</span>
+        <span class="label">{t('Hora')}</span>
         <input class="time num" type="time" bind:value={cfg.time} disabled={busy || !cfg.enabled} onchange={save} />
       </div>
       <div class="f">
-        <span class="label">Qué hace <Help text={H.schedMode.text} risk={H.schedMode.risk} label="Limpiar o solo avisar" /></span>
+        <span class="label">{t('Qué hace')} <Help text={H.schedMode.text} risk={H.schedMode.risk} label={t('Limpiar o solo avisar')} /></span>
         <div class="seg">
           {#each MODE as [v, l]}
-            <button class:on={cfg.mode === v} disabled={busy || !cfg.enabled} onclick={() => { cfg.mode = v; save(); }}>{l}</button>
+            <button class:on={cfg.mode === v} disabled={busy || !cfg.enabled} onclick={() => { cfg.mode = v; save(); }}>{t(l)}</button>
           {/each}
         </div>
       </div>
       <div class="f">
-        <span class="label">Vaciar cuarentena de más de <Help text={H.schedPurge.text} risk={H.schedPurge.risk} label="Vaciado automático" /></span>
+        <span class="label">{t('Vaciar cuarentena de más de')} <Help text={H.schedPurge.text} risk={H.schedPurge.risk} label={t('Vaciado automático')} /></span>
         <div class="seg">
           {#each PURGE as [v, l]}
-            <button class:on={cfg.purge_days === v} disabled={busy || !cfg.enabled} onclick={() => { cfg.purge_days = v; save(); }}>{l}</button>
+            <button class:on={cfg.purge_days === v} disabled={busy || !cfg.enabled} onclick={() => { cfg.purge_days = v; save(); }}>{t(l)}</button>
           {/each}
         </div>
       </div>
     </div>
     {#if cfg.purge_days > 0 && cfg.enabled}
-      <p class="note">Los lotes de la cuarentena con más de {cfg.purge_days} días se borrarán definitivamente.</p>
+      <p class="note">{t('Los lotes de la cuarentena con más de {n} días se borrarán definitivamente.', { n: cfg.purge_days })}</p>
     {/if}
     {#if risky && cfg.enabled}
-      <p class="note">WinCleaner está en una carpeta temporal o de descargas ({exe}). Muévelo a un sitio fijo y guarda de nuevo, o la tarea dejará de encontrarlo.</p>
+      <p class="note">{t('WinCleaner está en una carpeta temporal o de descargas ({exe}). Muévelo a un sitio fijo y guarda de nuevo, o la tarea dejará de encontrarlo.', { exe })}</p>
     {/if}
   </section>
 
   <section class="card last">
-    <span class="label">Última pasada</span>
+    <span class="label">{t('Última pasada')}</span>
     {#if last}
-      <p class="num sum">{fmt(last.bytes)} <small>· {last.files} archivos · {last.mode === 'notify' ? 'solo aviso' : 'limpieza'}{last.purged ? ` · ${last.purged} lotes vaciados` : ''}</small></p>
+      <p class="num sum">{fmt(last.bytes)} <small>· {t('{n} archivos', { n: last.files })} · {last.mode === 'notify' ? t('solo aviso') : t('limpieza')}{last.purged ? ' · ' + t('{n} lotes vaciados', { n: last.purged }) : ''}</small></p>
       <p class="when">{fmtDate(last.when)}</p>
     {:else}
-      <p class="when">Todavía no se ha ejecutado.</p>
+      <p class="when">{t('Todavía no se ha ejecutado.')}</p>
     {/if}
-    <button class="btn" disabled={busy} onclick={runNow}>Probar ahora</button>
+    <button class="btn" disabled={busy} onclick={runNow}>{t('Probar ahora')}</button>
   </section>
 {/if}
 

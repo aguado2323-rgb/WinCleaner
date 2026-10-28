@@ -1,8 +1,10 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
   import { fmt } from './format.js';
+  import { i18n } from './i18n.svelte.js';
   import { squarify } from './treemap.js';
 
   let { notify, refreshQuarantine, openQuarantine } = $props();
@@ -43,7 +45,7 @@
     const rest = kids.slice(MAX_TILES);
     if (rest.length) {
       const bytes = rest.reduce((a, c) => a + c.bytes, 0);
-      shown.push({ name: `${rest.length} elementos más`, path: '', is_dir: false, bytes, files: 0, value: bytes, other: true });
+      shown.push({ name: t('{n} elementos más', { n: rest.length }), path: '', is_dir: false, bytes, files: 0, value: bytes, other: true });
     }
     return squarify(shown).map((t, i) => ({ ...t, i }));
   });
@@ -60,13 +62,13 @@
       const rep = await invoke('space_quarantine', { paths: pickedItems.map((x) => x.path) });
       notify(
         rep.errors.length
-          ? `${rep.files} archivos movidos · ${rep.errors.length} con error: ${rep.errors[0]}`
-          : `${fmt(rep.bytes)} movidos a la cuarentena`,
-        { label: 'Ver cuarentena', run: openQuarantine }
+          ? t('{n} archivos movidos · {e} con error: {m}', { n: rep.files, e: rep.errors.length, m: rep.errors[0] })
+          : t('{b} movidos a la cuarentena', { b: fmt(rep.bytes) }),
+        { label: t('Ver cuarentena'), run: openQuarantine }
       );
       refreshQuarantine();
     } catch (e) {
-      notify('No se pudo mover: ' + e);
+      notify(t('No se pudo mover: ') + e);
     }
     working = false;
     confirming = false;
@@ -91,7 +93,7 @@
       cache.set(path, r);
       if (id === seq) report = r;
     } catch (e) {
-      if (id === seq) notify('No se pudo analizar: ' + e);
+      if (id === seq) notify(t('No se pudo analizar: ') + e);
     }
     if (id === seq) loading = false;
   }
@@ -101,11 +103,11 @@
       roots = await invoke('disk_roots');
       if (roots.length) await go(roots[0].path);
     } catch (e) {
-      notify('No se pudieron leer los discos: ' + e);
+      notify(t('No se pudieron leer los discos: ') + e);
     }
   }
 
-  const reveal = (path) => invoke('reveal', { path }).catch((e) => notify('No se pudo abrir: ' + e));
+  const reveal = (path) => invoke('reveal', { path }).catch((e) => notify(t('No se pudo abrir: ') + e));
   // Cada bloque se tiñe con una tinta distinta; el mayor, con el acento.
   const tone = (t) =>
     t.other
@@ -122,18 +124,18 @@
   init();
 </script>
 
-<p class="label">Espacio</p>
-<h1 class="h1">Qué ocupa tu disco.</h1>
-<p class="lede">Haz clic en un bloque para entrar y marca lo que quieras quitar: irá a la cuarentena, no se borra. <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label="Cómo leer el mapa" /></p>
+<p class="label">{t('Espacio')}</p>
+<h1 class="h1">{t('Qué ocupa tu disco.')}</h1>
+<p class="lede">{t('Haz clic en un bloque para entrar y marca lo que quieras quitar: irá a la cuarentena, no se borra.')} <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label={t('Cómo leer el mapa')} /></p>
 
 <div class="roots tabs">
   {#each roots as r (r.path)}
-    <button class:on={activeRoot === r.path} onclick={() => go(r.path)}>{r.label}</button>
+    <button class:on={activeRoot === r.path} onclick={() => go(r.path)}>{r.label.startsWith('Disco ') ? t('Disco {d}', { d: r.label.slice(6) }) : t(r.label)}</button>
   {/each}
 </div>
 
 {#if current}
-  <nav class="crumbs num" aria-label="Ruta">
+  <nav class="crumbs num" aria-label={t('Ruta')}>
     {#each crumbs as c, i (c.path)}
       {#if i}<span>/</span>{/if}
       <button class:last={i === crumbs.length - 1} onclick={() => go(c.path)}>{c.name}</button>
@@ -143,20 +145,20 @@
 
 <section class="stats num">
   {#if report}
-    <span><b>{fmt(report.bytes)}</b> en total</span>
-    <span><b>{report.files.toLocaleString('es-ES')}</b> archivos</span>
-    <span><b>{report.children.length}</b> elementos</span>
-    {#if report.skipped}<span class="warn"><b>{report.skipped}</b> sin acceso <Help text={H.spaceSkipped.text} risk={H.spaceSkipped.risk} label="Qué es sin acceso" /></span>{/if}
+    <span><b>{fmt(report.bytes)}</b> {t('en total')}</span>
+    <span><b>{report.files.toLocaleString(i18n.locale)}</b> {t('archivos')}</span>
+    <span><b>{report.children.length}</b> {t('elementos')}</span>
+    {#if report.skipped}<span class="warn"><b>{report.skipped}</b> {t('sin acceso')} <Help text={H.spaceSkipped.text} risk={H.spaceSkipped.risk} label={t('Qué es sin acceso')} /></span>{/if}
   {:else}
     <span>—</span>
   {/if}
 </section>
 
-<section class="map" aria-label="Mapa de espacio">
+<section class="map" aria-label={t('Mapa de espacio')}>
   {#if loading}
-    <div class="scanning"><b class="num dots">···</b><span>Analizando. En discos grandes puede tardar.</span></div>
+    <div class="scanning"><b class="num dots">···</b><span>{t('Analizando. En discos grandes puede tardar.')}</span></div>
   {:else if report && !tiles.length}
-    <div class="scanning"><span>Carpeta vacía.</span></div>
+    <div class="scanning"><span>{t('Carpeta vacía.')}</span></div>
   {/if}
   {#each tiles as t (t.path || t.name)}
     <button
@@ -181,17 +183,17 @@
 
 {#if report}
   <div class="tabs sub" role="tablist">
-    <button role="tab" aria-selected={tab === 'folders'} class:on={tab === 'folders'} onclick={() => (tab = 'folders')}>Contenido</button>
-    <button role="tab" aria-selected={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>Archivos más grandes</button>
+    <button role="tab" aria-selected={tab === 'folders'} class:on={tab === 'folders'} onclick={() => (tab = 'folders')}>{t('Contenido')}</button>
+    <button role="tab" aria-selected={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>{t('Archivos más grandes')}</button>
   </div>
 
   {#if pickedItems.length}
     <div class="bar">
-      <span class="num"><b>{pickedItems.length}</b> {pickedItems.length === 1 ? 'elemento' : 'elementos'} · {fmt(pickedBytes)}</span>
-      <button class="link" onclick={() => (picked = {})}>Ninguno</button>
+      <span class="num"><b>{pickedItems.length}</b> {pickedItems.length === 1 ? t('elemento') : t('elementos')} · {fmt(pickedBytes)}</span>
+      <button class="link" onclick={() => (picked = {})}>{t('Ninguno')}</button>
       <span class="grow"></span>
-      <Help text={H.spaceDelete.text} risk={H.spaceDelete.risk} label="Qué hace Mover a la cuarentena" />
-      <button class="btn danger" onclick={() => (confirming = true)}>Mover a la cuarentena</button>
+      <Help text={H.spaceDelete.text} risk={H.spaceDelete.risk} label={t('Qué hace Mover a la cuarentena')} />
+      <button class="btn danger" onclick={() => (confirming = true)}>{t('Mover a la cuarentena')}</button>
     </div>
   {/if}
 
@@ -219,8 +221,8 @@
             </span>
             <span class="mini" aria-hidden="true"><i style="width:{(f.bytes / maxFile) * 100}%"></i></span>
             <span class="sz num">{fmt(f.bytes)}</span>
-            <button class="link" onclick={() => reveal(f.path)}>Mostrar ↗</button>
-            <Help text={H.spaceLargest.text} risk={H.spaceLargest.risk} label="Qué hace Mostrar" />
+            <button class="link" onclick={() => reveal(f.path)}>{t('Mostrar')} ↗</button>
+            <Help text={H.spaceLargest.text} risk={H.spaceLargest.risk} label={t('Qué hace Mostrar')} />
           </div>
         </li>
       {/each}
@@ -230,10 +232,10 @@
 
 {#snippet pick(x)}
   {#if x.protected}
-    <span class="lock"><Help text={H.spaceProtected.text} risk={H.spaceProtected.risk} label="Por qué está bloqueado" /></span>
+    <span class="lock"><Help text={H.spaceProtected.text} risk={H.spaceProtected.risk} label={t('Por qué está bloqueado')} /></span>
   {:else}
-    <label class="pick" title="Seleccionar">
-      <input type="checkbox" bind:checked={picked[x.path]} aria-label="Seleccionar {baseName(x.path)}" />
+    <label class="pick" title={t('Seleccionar')}>
+      <input type="checkbox" bind:checked={picked[x.path]} aria-label="{t('Seleccionar')} {baseName(x.path)}" />
       <span class="box" aria-hidden="true"></span>
     </label>
   {/if}
@@ -244,11 +246,11 @@
   <div class="overlay" role="presentation" onclick={() => !working && (confirming = false)}>
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
     <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-      <h3>¿Mover {pickedItems.length} {pickedItems.length === 1 ? 'elemento' : 'elementos'} ({fmt(pickedBytes)})?</h3>
-      <p>No se borran: pasan a la cuarentena y puedes devolverlos a su sitio cuando quieras.</p>
+      <h3>{t('¿Mover {n} {u} ({b})?', { n: pickedItems.length, u: pickedItems.length === 1 ? t('elemento') : t('elementos'), b: fmt(pickedBytes) })}</h3>
+      <p>{t('No se borran: pasan a la cuarentena y puedes devolverlos a su sitio cuando quieras.')}</p>
       <div class="row">
-        <button class="btn" disabled={working} onclick={() => (confirming = false)}>Cancelar</button>
-        <button class="btn primary" disabled={working} onclick={quarantineSelected}>{working ? 'Moviendo…' : 'Mover'}</button>
+        <button class="btn" disabled={working} onclick={() => (confirming = false)}>{t('Cancelar')}</button>
+        <button class="btn primary" disabled={working} onclick={quarantineSelected}>{working ? t('Moviendo…') : t('Mover')}</button>
       </div>
     </div>
   </div>

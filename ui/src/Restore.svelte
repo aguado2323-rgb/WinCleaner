@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -17,7 +18,7 @@
       admin = s.admin;
       points = s.points;
     } catch (e) {
-      notify('No se pudo leer la protección del sistema: ' + e);
+      notify(t('No se pudo leer la protección del sistema: ') + e);
     }
     loading = false;
   }
@@ -26,7 +27,7 @@
     busy = true;
     try {
       await invoke('restore_create', { reason: 'manual' });
-      notify('Punto de restauración creado');
+      notify(t('Punto de restauración creado'));
       await load();
     } catch (e) {
       notify(String(e));
@@ -34,50 +35,50 @@
     busy = false;
   }
 
-  const openRestore = () => invoke('restore_open').catch((e) => notify('No se pudo abrir: ' + e));
+  const openRestore = () => invoke('restore_open').catch((e) => notify(t('No se pudo abrir: ') + e));
   const elevate = () => invoke('restart_as_admin').catch((e) => notify(String(e)));
 
   load();
 </script>
 
-<p class="label">Restauración</p>
-<h1 class="h1">Vuelve atrás si algo falla.</h1>
-<p class="lede">Un punto de restauración es una foto de la configuración de Windows. Si un cambio sale mal, puedes volver a ese momento. Crea uno antes de tocar nada importante.</p>
+<p class="label">{t('Restauración')}</p>
+<h1 class="h1">{t('Vuelve atrás si algo falla.')}</h1>
+<p class="lede">{t('Un punto de restauración es una foto de la configuración de Windows. Si un cambio sale mal, puedes volver a ese momento. Crea uno antes de tocar nada importante.')}</p>
 
 {#if !loading && !admin}
   <section class="admin">
-    <p><b>Modo administrador.</b> Windows exige permisos de administrador para crear puntos de restauración.</p>
-    <span class="acts"><button class="btn" onclick={elevate}>Reiniciar como administrador</button>
-    <Help text={H.restoreAdmin.text} risk={H.restoreAdmin.risk} label="Qué hace Reiniciar como administrador" /></span>
+    <p><b>{t('Modo administrador.')}</b> {t('Windows exige permisos de administrador para crear puntos de restauración.')}</p>
+    <span class="acts"><button class="btn" onclick={elevate}>{t('Reiniciar como administrador')}</button>
+    <Help text={H.restoreAdmin.text} risk={H.restoreAdmin.risk} label={t('Qué hace Reiniciar como administrador')} /></span>
   </section>
 {/if}
 
 <section class="act">
   <button class="btn primary" disabled={busy || loading || !admin} onclick={create}>
-    {busy ? 'Creando…' : 'Crear punto ahora'}
+    {busy ? t('Creando…') : t('Crear punto ahora')}
   </button>
-  <Help text={H.restoreCreate.text} risk={H.restoreCreate.risk} label="Qué hace Crear punto" />
-  <button class="link" onclick={openRestore}>Abrir Restaurar sistema ↗</button>
-  <Help text={H.restoreOpen.text} risk={H.restoreOpen.risk} label="Qué hace Abrir Restaurar sistema" />
+  <Help text={H.restoreCreate.text} risk={H.restoreCreate.risk} label={t('Qué hace Crear punto')} />
+  <button class="link" onclick={openRestore}>{t('Abrir Restaurar sistema')} ↗</button>
+  <Help text={H.restoreOpen.text} risk={H.restoreOpen.risk} label={t('Qué hace Abrir Restaurar sistema')} />
 </section>
-<p class="note">Windows solo permite un punto nuevo cada 24 horas. Para volver a uno anterior se usa el asistente oficial de Windows, no WinCleaner.</p>
+<p class="note">{t('Windows solo permite un punto nuevo cada 24 horas. Para volver a uno anterior se usa el asistente oficial de Windows, no WinCleaner.')}</p>
 
 <div class="head">
-  <h2 class="label">Puntos guardados</h2>
+  <h2 class="label">{t('Puntos guardados')}</h2>
   <span class="num">{points.length}</span>
 </div>
 
 {#if loading}
   <p class="empty num">···</p>
 {:else if !points.length}
-  <p class="empty">No hay puntos de restauración. Si la protección del sistema está desactivada, actívala desde «Abrir Restaurar sistema».</p>
+  <p class="empty">{t('No hay puntos de restauración. Si la protección del sistema está desactivada, actívala desde «Abrir Restaurar sistema».')}</p>
 {:else}
   <ul>
     {#each points as p, i (p.sequence)}
       <li style="animation-delay:{i * 24}ms">
         <span class="date num">{p.created}</span>
         <span class="desc">{p.description}</span>
-        <span class="kind label">{p.kind}</span>
+        <span class="kind label">{t(p.kind)}</span>
       </li>
     {/each}
   </ul>

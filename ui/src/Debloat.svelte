@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -26,7 +27,7 @@
       items = await invoke('debloat_list');
       selected = Object.fromEntries(items.filter((i) => i.risk === 'safe').map((i) => [i.id, false]));
     } catch (e) {
-      notify('No se pudo leer las aplicaciones: ' + e);
+      notify(t('No se pudo leer las aplicaciones: ') + e);
     }
     loading = false;
   }
@@ -51,7 +52,7 @@
       const res = await invoke('debloat_apply', { ids: chosen.map((i) => i.id) });
       const ok = res.filter((r) => r.ok).length;
       const bad = res.filter((r) => !r.ok);
-      notify(bad.length ? `${ok} quitadas, ${bad.length} con error: ${bad[0].error}` : `${ok} aplicaciones quitadas`);
+      notify(bad.length ? t('{n} quitadas, {e} con error: {m}', { n: ok, e: bad.length, m: bad[0].error }) : t('{n} aplicaciones quitadas', { n: ok }));
     } catch (e) {
       notify(String(e));
     }
@@ -63,24 +64,24 @@
   load();
 </script>
 
-<p class="label">Preinstaladas</p>
-<h1 class="h1">Quita lo que no pediste.</h1>
-<p class="lede">Aplicaciones que vienen preinstaladas con Windows o con tu equipo. Solo aparecen las que están instaladas y se pueden quitar sin romper nada. Todas se reinstalan desde Microsoft Store.</p>
+<p class="label">{t('Preinstaladas')}</p>
+<h1 class="h1">{t('Quita lo que no pediste.')}</h1>
+<p class="lede">{t('Aplicaciones que vienen preinstaladas con Windows o con tu equipo. Solo aparecen las que están instaladas y se pueden quitar sin romper nada. Todas se reinstalan desde Microsoft Store.')}</p>
 
 <section class="act">
   <button class="btn primary" disabled={!chosen.length || loading} onclick={() => (confirming = true)}>
-    Quitar {chosen.length || ''}
+    {t('Quitar')} {chosen.length || ''}
   </button>
-  <Help text={H.debloatRemove.text} risk={H.debloatRemove.risk} label="Qué hace Quitar" />
-  <button class="link" onclick={setSafe}>Marcar las seguras</button>
-  <Help text={H.debloatSafe.text} risk={H.debloatSafe.risk} label="Qué hace Marcar las seguras" />
-  <button class="link" onclick={() => (selected = {})}>Nada</button>
+  <Help text={H.debloatRemove.text} risk={H.debloatRemove.risk} label={t('Qué hace Quitar')} />
+  <button class="link" onclick={setSafe}>{t('Marcar las seguras')}</button>
+  <Help text={H.debloatSafe.text} risk={H.debloatSafe.risk} label={t('Qué hace Marcar las seguras')} />
+  <button class="link" onclick={() => (selected = {})}>{t('Nada')}</button>
 </section>
 
 {#if loading}
   <p class="empty num">···</p>
 {:else if !items.length}
-  <p class="empty">No se ha encontrado ninguna aplicación del catálogo. Tu Windows ya está limpio.</p>
+  <p class="empty">{t('No se ha encontrado ninguna aplicación del catálogo. Tu Windows ya está limpio.')}</p>
 {:else}
   {#each groups as [cat, list] (cat)}
     <div class="group"><h2 class="label">{cat}</h2><span class="num">{list.length}</span></div>
@@ -94,11 +95,11 @@
               <b>{i.name}</b>
               <small>{i.what}</small>
             </span>
-            <span class="tag label" class:warn={i.risk === 'cautious'}>{i.risk === 'safe' ? 'Segura' : 'Con cuidado'}</span>
-            <Help text={i.what + ' ' + i.impact + ' ' + (i.risk === 'safe' ? 'Casi nadie la echa de menos.' : 'Hay quien la usa: léelo antes de quitarla.') + ' Se reinstala desde Microsoft Store.'} risk={i.risk === 'safe' ? 'reversible' : 'care'} label="Qué es {i.name}" />
+            <span class="tag label" class:warn={i.risk === 'cautious'}>{i.risk === 'safe' ? t('Segura') : t('Con cuidado')}</span>
+            <Help text={i.what + ' ' + i.impact + ' ' + (i.risk === 'safe' ? 'Casi nadie la echa de menos.' : 'Hay quien la usa: léelo antes de quitarla.') + ' Se reinstala desde Microsoft Store.'} risk={i.risk === 'safe' ? 'reversible' : 'care'} label={t('Qué es {n}', { n: i.name })} />
           </label>
           <button class="more link" aria-expanded={!!open[i.id]} onclick={() => (open[i.id] = !open[i.id])}>
-            {open[i.id] ? 'Ocultar efecto' : '¿Qué pasa si la quito?'}
+            {open[i.id] ? t('Ocultar efecto') : t('¿Qué pasa si la quito?')}
           </button>
           {#if open[i.id]}<p class="impact">{i.impact}</p>{/if}
         </li>
@@ -112,26 +113,26 @@
   <div class="overlay" role="presentation" onclick={() => phase === 'idle' && (confirming = false)}>
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
     <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-      <h3>¿Quitar {chosen.length} {chosen.length === 1 ? 'aplicación' : 'aplicaciones'}?</h3>
+      <h3>{t('¿Quitar {n} {u}?', { n: chosen.length, u: chosen.length === 1 ? t('aplicación') : t('aplicaciones') })}</h3>
       <p>
-        Se quitan solo para tu usuario y puedes reinstalarlas desde Microsoft Store.
-        {#if cautious}<br /><b>{cautious} {cautious === 1 ? 'es' : 'son'} «con cuidado»</b>: revisa su efecto antes de seguir.{/if}
+        {t('Se quitan solo para tu usuario y puedes reinstalarlas desde Microsoft Store.')}
+        {#if cautious}<br /><b>{cautious === 1 ? t('{n} es «con cuidado»', { n: cautious }) : t('{n} son «con cuidado»', { n: cautious })}</b>: {t('revisa su efecto antes de seguir.')}{/if}
       </p>
       <label class="pt">
         <input type="checkbox" bind:checked={makePoint} disabled={phase === 'working'} />
         <span class="box" aria-hidden="true"></span>
-        <span>Crear un punto de restauración antes (recomendado)</span>
-        <Help text={H.debloatPoint.text} risk={H.debloatPoint.risk} label="Qué es un punto de restauración" />
+        <span>{t('Crear un punto de restauración antes (recomendado)')}</span>
+        <Help text={H.debloatPoint.text} risk={H.debloatPoint.risk} label={t('Qué es un punto de restauración')} />
       </label>
       {#if pointError}
         <p class="err">{pointError}</p>
       {/if}
       <div class="row">
-        <button class="btn" disabled={phase === 'working'} onclick={() => (confirming = false)}>Cancelar</button>
+        <button class="btn" disabled={phase === 'working'} onclick={() => (confirming = false)}>{t('Cancelar')}</button>
         {#if pointError}
-          <button class="btn" disabled={phase === 'working'} onclick={() => apply(true)}>Continuar sin punto</button>
+          <button class="btn" disabled={phase === 'working'} onclick={() => apply(true)}>{t('Continuar sin punto')}</button>
         {:else}
-          <button class="btn primary" disabled={phase === 'working'} onclick={() => apply()}>{phase === 'working' ? 'Quitando…' : 'Quitar'}</button>
+          <button class="btn primary" disabled={phase === 'working'} onclick={() => apply()}>{phase === 'working' ? t('Quitando…') : t('Quitar')}</button>
         {/if}
       </div>
     </div>

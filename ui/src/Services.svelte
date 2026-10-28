@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -18,7 +19,7 @@
     try {
       [items, admin] = await Promise.all([invoke('services_state'), invoke('app_is_admin')]);
     } catch (e) {
-      notify('No se pudieron leer los servicios: ' + e);
+      notify(t('No se pudieron leer los servicios: ') + e);
     }
     loading = false;
   }
@@ -40,7 +41,7 @@
       if (enable) await ensurePoint();
       await invoke('service_apply', { id: s.id, enable });
       await load();
-      notify(`${s.name}: ${enable ? 'pasa a Manual' : 'vuelve a como estaba'}. Se nota al reiniciar el equipo.`);
+      notify(`${s.name}: ${enable ? t('pasa a Manual') : t('vuelve a como estaba')}. ${t('Se nota al reiniciar el equipo.')}`);
     } catch (e) {
       notify(String(e));
     }
@@ -50,28 +51,28 @@
   load();
 </script>
 
-<p class="label">Servicios</p>
-<h1 class="h1">Menos cosas al arrancar.</h1>
-<p class="lede">Los servicios son programas de Windows que arrancan solos con el equipo. Pasar uno a «Manual» no lo borra ni lo detiene: solo evita que arranque solo, y Windows lo inicia si algo lo necesita. «Deshacer» devuelve el inicio original. <Help text={H.servicesInfo.text} risk={H.servicesInfo.risk} label="Cómo funcionan los servicios" /></p>
+<p class="label">{t('Servicios')}</p>
+<h1 class="h1">{t('Menos cosas al arrancar.')}</h1>
+<p class="lede">{t('Los servicios son programas de Windows que arrancan solos con el equipo. Pasar uno a «Manual» no lo borra ni lo detiene: solo evita que arranque solo, y Windows lo inicia si algo lo necesita. «Deshacer» devuelve el inicio original.')} <Help text={H.servicesInfo.text} risk={H.servicesInfo.risk} label={t('Cómo funcionan los servicios')} /></p>
 
 <section class="top">
   <span class="big num">{appliedCount}<small>/{items.length}</small></span>
-  <span class="cap">servicios en Manual</span>
+  <span class="cap">{t('servicios en Manual')}</span>
   <label class="pt">
     <input type="checkbox" bind:checked={makePoint} />
     <span class="box" aria-hidden="true"></span>
-    <span>Punto de restauración antes de empezar</span>
+    <span>{t('Punto de restauración antes de empezar')}</span>
   </label>
-  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label="Qué es un punto de restauración" />
+  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label={t('Qué es un punto de restauración')} />
 </section>
 {#if !loading && !admin}
-  <p class="note">Sin permisos de administrador no se puede cambiar ningún servicio. Puedes reiniciar como administrador desde «Restauración».</p>
+  <p class="note">{t('Sin permisos de administrador no se puede cambiar ningún servicio. Puedes reiniciar como administrador desde «Restauración».')}</p>
 {/if}
 
 {#if loading}
   <p class="empty num">···</p>
 {:else if !items.length}
-  <p class="empty">No hay servicios que cambiar: los del catálogo ya están en Manual o no existen en tu Windows.</p>
+  <p class="empty">{t('No hay servicios que cambiar: los del catálogo ya están en Manual o no existen en tu Windows.')}</p>
 {:else}
   <ul>
     {#each items as s, n (s.id)}
@@ -79,14 +80,14 @@
         <div class="txt">
           <span class="top2">
             <b>{s.name}</b>
-            {#if s.risk === 'care'}<span class="tag label warn">Con cuidado</span>{/if}
+            {#if s.risk === 'care'}<span class="tag label warn">{t('Con cuidado')}</span>{/if}
           </span>
-          <small>{s.what} · Ahora: {s.start}</small>
+          <small>{s.what} · {t('Ahora')}: {t(s.start)}</small>
         </div>
-        <Help text={s.help} risk={s.risk === 'care' ? 'care' : 'reversible'} label="Qué hace {s.name}" />
-        <span class="state label" class:on={s.applied}>{s.applied ? 'En Manual' : 'Automático'}</span>
+        <Help text={s.help} risk={s.risk === 'care' ? 'care' : 'reversible'} label={t('Qué hace {n}', { n: s.name })} />
+        <span class="state label" class:on={s.applied}>{s.applied ? t('En Manual') : t('Automático')}</span>
         <button class="act" class:undo={s.applied} disabled={busy[s.id] || !admin} onclick={() => toggle(s)}>
-          {s.applied ? 'Deshacer' : 'Pasar a Manual'}
+          {s.applied ? t('Deshacer') : t('Pasar a Manual')}
         </button>
       </li>
     {/each}

@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -44,32 +45,32 @@
         notify(String(e));
       }
     }
-    notify(`${ok} actualizados` + (bad ? `, ${bad} con error` : ''));
+    notify(t('{n} actualizados', { n: ok }) + (bad ? ', ' + t('{n} con error', { n: bad }) : ''));
     working = false;
   }
 
   load();
 </script>
 
-<p class="label">Actualizaciones</p>
-<h1 class="h1">Programas al día.</h1>
-<p class="lede">Busca versiones nuevas de tus programas con winget, el gestor oficial de Windows, y las instala. Las versiones nuevas suelen traer arreglos de seguridad. <Help text={H.updatesInfo.text} risk={H.updatesInfo.risk} label="Cómo funcionan las actualizaciones" /></p>
+<p class="label">{t('Actualizaciones')}</p>
+<h1 class="h1">{t('Programas al día.')}</h1>
+<p class="lede">{t('Busca versiones nuevas de tus programas con winget, el gestor oficial de Windows, y las instala. Las versiones nuevas suelen traer arreglos de seguridad.')} <Help text={H.updatesInfo.text} risk={H.updatesInfo.risk} label={t('Cómo funcionan las actualizaciones')} /></p>
 
 <section class="top">
   <span class="big num">{loading ? '···' : items.length}</span>
-  <span class="cap">{items.length === 1 ? 'programa con actualización' : 'programas con actualización'}</span>
+  <span class="cap">{items.length === 1 ? t('programa con actualización') : t('programas con actualización')}</span>
   <button class="btn primary" disabled={working || !chosen.length} onclick={run}>
-    {working ? 'Actualizando…' : `Actualizar ${chosen.length}`}
+    {working ? t('Actualizando…') : t('Actualizar {n}', { n: chosen.length })}
   </button>
-  <button class="link" disabled={working || loading} onclick={load}>Buscar de nuevo</button>
+  <button class="link" disabled={working || loading} onclick={load}>{t('Buscar de nuevo')}</button>
 </section>
 
 {#if loading}
   <p class="empty num">···</p>
 {:else if failed}
-  <p class="note">No se pudo consultar winget. Viene con «Instalador de aplicación» de la Microsoft Store.</p>
+  <p class="note">{t('No se pudo consultar winget. Viene con «Instalador de aplicación» de la Microsoft Store.')}</p>
 {:else if !items.length}
-  <p class="empty">Todo está al día.</p>
+  <p class="empty">{t('Todo está al día.')}</p>
 {:else}
   <ul>
     {#each items as u, n (u.id)}
@@ -81,7 +82,7 @@
         </label>
         <span class="ver num">{u.current} → {u.available}</span>
         <span class="st label" class:ok={status[u.id] === 'ok'} class:err={status[u.id] === 'error'}>
-          {status[u.id] === 'working' ? 'Instalando…' : status[u.id] === 'ok' ? 'Hecho' : status[u.id] === 'error' ? 'Error' : ''}
+          {status[u.id] === 'working' ? t('Instalando…') : status[u.id] === 'ok' ? t('Hecho') : status[u.id] === 'error' ? t('Error') : ''}
         </span>
       </li>
     {/each}
