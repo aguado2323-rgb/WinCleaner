@@ -201,6 +201,57 @@ name = "PreInstalledAppsEnabled"
 kind = "dword"
 value = "0"
 
+[[tweak]]
+id = "web-search-policy"
+name = "Búsqueda de Windows sin web (política)"
+category = "Privacidad"
+what = "Refuerza que la búsqueda de Windows no consulte Bing ni la web."
+help = "Complementa «Búsqueda web en el menú Inicio»: algunas versiones de Windows 11 ignoran el ajuste normal y siguen enviando lo que escribes. Con esta política la búsqueda queda limitada a tu equipo. Necesita administrador."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\Windows Search'
+name = "DisableWebSearch"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "feedback"
+name = "Sin peticiones de opinión"
+category = "Privacidad"
+what = "Windows deja de pedirte valoraciones y comentarios."
+help = "Pone la frecuencia de comentarios en «Nunca» y oculta los avisos de «¿qué te parece Windows?». No afecta a las actualizaciones ni a la seguridad."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\Siuf\Rules'
+name = "NumberOfSIUFInPeriod"
+kind = "dword"
+value = "0"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+name = "DoNotShowFeedbackNotifications"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "copilot"
+name = "Desactivar Copilot"
+category = "Privacidad"
+what = "Desactiva el asistente Copilot de Windows."
+help = "Aplica la política «Desactivar Windows Copilot» para el usuario actual, de modo que el botón y el panel dejan de funcionar y no se vuelve a activar solo tras una actualización. Si usas Copilot, déjalo como está. Para quitar también la app, usa la sección Preinstaladas."
+risk = "safe"
+restart = "explorer"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Policies\Microsoft\Windows\WindowsCopilot'
+name = "TurnOffWindowsCopilot"
+kind = "dword"
+value = "1"
+
 # ---------------------------------------------------------------- Rendimiento
 
 [[tweak]]
@@ -484,5 +535,35 @@ restart = "reboot"
 hive = "HKLM"
 path = 'SYSTEM\CurrentControlSet\Control\FileSystem'
 name = "LongPathsEnabled"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "game-mode"
+name = "Modo Juego activado"
+category = "Rendimiento"
+what = "Windows prioriza el juego en primer plano y evita tareas pesadas mientras juegas."
+help = "El Modo Juego hace que Windows no lance actualizaciones de controladores ni reparta recursos a otras tareas mientras juegas. Es seguro y viene activado en la mayoría de equipos; este ajuste solo lo asegura."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKCU"
+path = 'Software\Microsoft\GameBar'
+name = "AutoGameModeEnabled"
+kind = "dword"
+value = "1"
+
+[[tweak]]
+id = "restart-notify"
+name = "Avisar antes de reiniciar por actualizaciones"
+category = "Rendimiento"
+what = "Windows te avisa cuando necesita reiniciar en lugar de hacerlo por su cuenta."
+help = "Activa «Notificarme cuando sea necesario reiniciar para terminar de actualizar». Evita reinicios en mitad de una partida o de tu trabajo. Las actualizaciones se siguen instalando igual. Necesita administrador."
+risk = "safe"
+restart = "none"
+[[tweak.reg]]
+hive = "HKLM"
+path = 'SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
+name = "RestartNotificationsAllowed2"
 kind = "dword"
 value = "1"
