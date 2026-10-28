@@ -123,6 +123,10 @@ export const H = {
     risk: 'final',
     text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
   },
+  recycle: {
+    risk: 'final',
+    text: 'Vacía la Papelera de reciclaje de todas las unidades con la función oficial de Windows. A diferencia de la limpieza normal, esto NO pasa por la cuarentena y no se puede deshacer: revisa la Papelera antes si no estás seguro de lo que hay dentro.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',

@@ -6,6 +6,7 @@ mod debloat;
 mod disk;
 mod duplicates;
 mod protect;
+mod recycle;
 mod restore;
 mod services;
 mod startup;
@@ -41,3 +42,4 @@ pub use schedule::{
     last_run as schedule_last_run, load as schedule_load, run_now as schedule_run_now, run_scheduled, schedule_save, task_exists as schedule_task_exists,
     AutoMode, Freq, LastRun, Schedule,
 };
+pub use recycle::{recycle_empty, recycle_info, RecycleInfo};
