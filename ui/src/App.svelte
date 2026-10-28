@@ -15,6 +15,7 @@
   import Power from './Power.svelte';
   import Report from './Report.svelte';
   import Schedule from './Schedule.svelte';
+  import Monitor from './Monitor.svelte';
   import { i18n } from './i18n.svelte.js';
 
   const sections = [
@@ -151,6 +152,7 @@
   </aside>
 
   <main>
+    <div class="cols">
     {#key view}
       <div class="page" class:wide={view === 'uninstall'}>
         {#if view === 'clean'}
@@ -184,6 +186,8 @@
         {/if}
       </div>
     {/key}
+    {#if view !== 'uninstall'}<Monitor />{/if}
+    </div>
   </main>
 
   {#if toast}
@@ -217,7 +221,8 @@
   .theme:hover { color: var(--side-ink); border-color: rgb(255 255 255 / 0.3); }
   .theme .ico { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   main { overflow-y: auto; }
-  .page { max-width: 780px; padding: 32px 40px 70px; animation: fade 0.18s; }
+  .cols { display: flex; align-items: flex-start; }
+  .page { flex: 1; min-width: 0; max-width: 780px; padding: 32px 40px 70px; animation: fade 0.18s; }
   .page.wide { max-width: 1060px; }
   .toast { position: fixed; bottom: 20px; left: 244px; display: flex; align-items: center; gap: 18px; background: var(--ink); color: var(--paper); padding: 11px 14px 11px 16px; border-radius: 2px; font-size: 13px; animation: drop 0.18s; }
   .toast button { border: 1px solid var(--paper); background: none; color: var(--paper); padding: 3px 10px; border-radius: 2px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
