@@ -66,7 +66,7 @@ impl Protected {
                 return true;
             }
         }
-        self.exact.contains(&n) || self.trees.iter().any(|t| n == *t || n.starts_with(&format!("{t}/")))
+        self.exact.contains(&n) || self.trees.iter().any(|t| n.strip_prefix(t.as_str()).is_some_and(|rest| rest.is_empty() || rest.starts_with('/')))
     }
 }
 

@@ -389,4 +389,6 @@ export const en = {
   "Último uso": "Last used",
   "Últimos 30 días": "Last 30 days",
   "Últimos movimientos": "Latest activity",
+  "Mostrar el monitor": "Show monitor",
+  "Ocultar el monitor": "Hide monitor",
 };

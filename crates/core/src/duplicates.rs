@@ -59,11 +59,12 @@ fn walk(dir: &Path, prot: &Protected, skipped: &mut u64, visit: &mut dyn FnMut(&
         return;
     };
     for entry in read.flatten() {
-        let path = entry.path();
-        let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+        // Datos del propio listado: no abre cada archivo ni sigue enlaces.
+        let Ok(meta) = entry.metadata() else { continue };
         if meta.file_type().is_symlink() {
             continue;
         }
+        let path = entry.path();
         if meta.is_dir() {
             let name = entry.file_name().to_string_lossy().to_lowercase();
             if !SKIP_DIRS.contains(&name.as_str()) && !prot.is_protected(&path) {
@@ -75,11 +76,15 @@ fn walk(dir: &Path, prot: &Protected, skipped: &mut u64, visit: &mut dyn FnMut(&
     }
 }
 
-/// SHA-256 del archivo (todo, o solo los primeros `limit` bytes).
-fn hash_file(path: &Path, limit: Option<u64>) -> Option<[u8; 32]> {
+/// Bytes que se leen de golpe al hashear o comparar.
+const CHUNK: usize = 1 << 20;
+
+/// SHA-256 del archivo (todo, o solo los primeros `limit` bytes). `buf` se reutiliza entre archivos
+/// para no reservar y poner a cero un búfer nuevo por cada uno.
+fn hash_file(path: &Path, limit: Option<u64>, buf: &mut Vec<u8>) -> Option<[u8; 32]> {
     let mut f = File::open(path).ok()?;
     let mut h = Sha256::new();
-    let mut buf = vec![0u8; 1 << 20];
+    buf.resize(CHUNK, 0);
     let mut left = limit.unwrap_or(u64::MAX);
     while left > 0 {
         let want = buf.len().min(usize::try_from(left).unwrap_or(usize::MAX));
@@ -91,6 +96,37 @@ fn hash_file(path: &Path, limit: Option<u64>) -> Option<[u8; 32]> {
         left -= n as u64;
     }
     Some(h.finalize().into())
+}
+
+/// Lee hasta llenar `buf` o llegar al final; devuelve cuántos bytes quedaron.
+fn fill(f: &mut File, buf: &mut [u8]) -> Option<usize> {
+    let mut got = 0;
+    while got < buf.len() {
+        match f.read(&mut buf[got..]) {
+            Ok(0) => break,
+            Ok(n) => got += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(_) => return None,
+        }
+    }
+    Some(got)
+}
+
+/// ¿Dos archivos tienen exactamente el mismo contenido? Compara los bytes por bloques, sin hashear:
+/// gasta mucha menos CPU que SHA-256 y para en la primera diferencia. Un error de lectura cuenta como distinto.
+fn same_content(a: &Path, b: &Path, bufs: &mut (Vec<u8>, Vec<u8>)) -> bool {
+    let (Ok(mut fa), Ok(mut fb)) = (File::open(a), File::open(b)) else { return false };
+    bufs.0.resize(CHUNK, 0);
+    bufs.1.resize(CHUNK, 0);
+    loop {
+        let (Some(na), Some(nb)) = (fill(&mut fa, &mut bufs.0), fill(&mut fb, &mut bufs.1)) else { return false };
+        if na != nb || bufs.0[..na] != bufs.1[..nb] {
+            return false;
+        }
+        if na < CHUNK {
+            return true;
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -132,22 +168,34 @@ fn find_in(roots: &[PathBuf], min_bytes: u64, prot: &Protected) -> DupReport {
             }
         });
     }
+    let mut buf = Vec::new();
+    let mut pair = (Vec::new(), Vec::new());
     for (size, files) in by_size.into_iter().filter(|(_, f)| f.len() > 1) {
         // Primero los primeros 64 KB (barato); solo los que coinciden se leen enteros.
         let mut partial: HashMap<[u8; 32], Vec<(PathBuf, u64)>> = HashMap::new();
         for f in files {
-            if let Some(h) = hash_file(&f.0, Some(64 * 1024)) {
+            if let Some(h) = hash_file(&f.0, Some(64 * 1024), &mut buf) {
                 partial.entry(h).or_default().push(f);
             }
         }
         for cands in partial.into_values().filter(|c| c.len() > 1) {
-            let mut full: HashMap<[u8; 32], Vec<(PathBuf, u64)>> = HashMap::new();
-            for f in cands {
-                if let Some(h) = hash_file(&f.0, None) {
-                    full.entry(h).or_default().push(f);
+            let groups: Vec<Vec<(PathBuf, u64)>> = if cands.len() == 2 {
+                // El caso más común: dos candidatos se comparan byte a byte, sin calcular hashes.
+                if same_content(&cands[0].0, &cands[1].0, &mut pair) {
+                    vec![cands]
+                } else {
+                    Vec::new()
                 }
-            }
-            for mut same in full.into_values().filter(|c| c.len() > 1) {
+            } else {
+                let mut full: HashMap<[u8; 32], Vec<(PathBuf, u64)>> = HashMap::new();
+                for f in cands {
+                    if let Some(h) = hash_file(&f.0, None, &mut buf) {
+                        full.entry(h).or_default().push(f);
+                    }
+                }
+                full.into_values().collect()
+            };
+            for mut same in groups.into_iter().filter(|c| c.len() > 1) {
                 same.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)));
                 rep.wasted += size * (same.len() as u64 - 1);
                 rep.groups.push(DupGroup {
@@ -168,15 +216,15 @@ pub struct DupSelection {
     pub remove: Vec<String>,
 }
 
-/// Mueve a la cuarentena las copias elegidas. Cada copia se vuelve a comparar con la que se conserva
-/// (mismo tamaño y mismo SHA-256) justo antes de moverla; si algo cambió desde el escaneo, se deja.
+/// Mueve a la cuarentena las copias elegidas. Cada copia se vuelve a comparar byte a byte con la que se
+/// conserva (mismo tamaño y mismo contenido) justo antes de moverla; si algo cambió desde el escaneo, se deja.
 pub fn quarantine_duplicates(sel: &[DupSelection], quarantine_dir: &Path, batch: &str) -> CleanReport {
     let mut items = Vec::new();
     let mut errors = Vec::new();
+    let mut pair = (Vec::new(), Vec::new());
     for s in sel {
         let keep = PathBuf::from(&s.keep);
-        let ok_keep = fs::symlink_metadata(&keep).ok().filter(|m| m.is_file());
-        let (Some(keep_meta), Some(keep_hash)) = (ok_keep, hash_file(&keep, None)) else {
+        let Some(keep_meta) = fs::symlink_metadata(&keep).ok().filter(|m| m.is_file() && File::open(&keep).is_ok()) else {
             errors.push(format!("la copia que se conserva ya no está: {}", s.keep));
             continue;
         };
@@ -188,9 +236,7 @@ pub fn quarantine_duplicates(sel: &[DupSelection], quarantine_dir: &Path, batch:
             }
             let same = fs::symlink_metadata(&p)
                 .ok()
-                .filter(|m| m.is_file() && m.len() == keep_meta.len())
-                .and_then(|_| hash_file(&p, None))
-                .is_some_and(|h| h == keep_hash);
+                .is_some_and(|m| m.is_file() && m.len() == keep_meta.len() && same_content(&keep, &p, &mut pair));
             if same {
                 items.push(p);
             } else {
@@ -264,6 +310,28 @@ mod tests {
         // Con umbral bajo también salen los pequeños.
         let rep = find_in(&[t.path().to_path_buf()], 1, &Protected::new(&[], &[]));
         assert_eq!(rep.groups.len(), 2);
+    }
+
+    #[test]
+    fn groups_of_three_and_pairs_that_differ_late() {
+        let t = tempfile::tempdir().unwrap();
+        let data = vec![3u8; 3 * CHUNK + 17];
+        let mut late = data.clone();
+        *late.last_mut().unwrap() = 4; // difiere en el último bloque, que no llena el búfer
+        for n in ["a", "b", "c"] {
+            write(t.path(), &format!("{n}/trio.bin"), &data);
+        }
+        write(t.path(), "d/otro.bin", &late);
+        let solo = vec![5u8; 2 * CHUNK];
+        let mut solo2 = solo.clone();
+        solo2[CHUNK] = 6; // pareja del mismo tamaño y mismo inicio que no es igual
+        write(t.path(), "e/par.bin", &solo);
+        write(t.path(), "f/par.bin", &solo2);
+
+        let rep = find_in(&[t.path().to_path_buf()], 1000, &Protected::new(&[], &[]));
+        assert_eq!(rep.groups.len(), 1, "{:?}", rep.groups);
+        assert_eq!(rep.groups[0].files.len(), 3);
+        assert_eq!(rep.wasted, 2 * data.len() as u64);
     }
 
     #[test]

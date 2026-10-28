@@ -4,10 +4,34 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use sysinfo::{Components, Disks, Networks, ProcessesToUpdate, System};
+use sysinfo::{Components, Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
 /// Cuántos programas se listan en cada ranking.
 const TOP: usize = 4;
+
+// Cada cuánto se repiten las lecturas caras. CPU, RAM, red y procesos se leen en cada muestra;
+// lo demás cambia despacio y cuesta mucho más (WMI, PowerShell, programas externos).
+/// Sensores de temperatura por WMI: conexión nueva cada vez.
+const SENSORS_EVERY: Duration = Duration::from_secs(10);
+/// Zonas térmicas: arranca un PowerShell entero.
+const ZONES_EVERY: Duration = Duration::from_secs(20);
+/// `nvidia-smi`: un programa aparte en cada lectura.
+const GPU_EVERY: Duration = Duration::from_secs(6);
+/// Espacio libre de las unidades.
+const DISKS_EVERY: Duration = Duration::from_secs(10);
+/// Si algo no existe en este equipo (sin sensores, sin NVIDIA) se vuelve a probar muy de vez en cuando.
+const MISSING_EVERY: Duration = Duration::from_secs(300);
+
+/// Solo lo que se muestra: CPU y memoria. Sin E/S de disco ni ruta del ejecutable, que en Windows
+/// cuestan llamadas extra por cada proceso en cada muestra.
+fn proc_kind() -> ProcessRefreshKind {
+    ProcessRefreshKind::nothing().with_cpu().with_memory()
+}
+
+/// ¿Toca repetir una lectura hecha en `at`? Si no dio nada, se espera más.
+fn due(at: Option<Instant>, every: Duration, empty: bool) -> bool {
+    at.is_none_or(|t| t.elapsed() >= if empty { MISSING_EVERY } else { every })
+}
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PhysDisk {
@@ -81,12 +105,15 @@ pub struct Monitor {
     sys: System,
     nets: Networks,
     last: Instant,
-    // Lecturas lentas (PowerShell): se repiten cada pocos segundos, no en cada muestra.
+    // Lecturas caras: se guardan y se repiten cada pocos segundos, no en cada muestra.
+    sensors: Vec<Temp>,
+    sensors_at: Option<Instant>,
     zones: Vec<Temp>,
     zones_at: Option<Instant>,
-    // nvidia-smi es rápido, pero si no existe no se insiste más de una vez por minuto.
     gpu: Vec<GpuLive>,
     gpu_at: Option<Instant>,
+    disks: Vec<DiskUse>,
+    disks_at: Option<Instant>,
 }
 
 impl Default for Monitor {
@@ -100,8 +127,20 @@ impl Monitor {
         let mut sys = System::new();
         sys.refresh_cpu_usage();
         sys.refresh_memory();
-        sys.refresh_processes(ProcessesToUpdate::All, true);
-        Monitor { sys, nets: Networks::new_with_refreshed_list(), last: Instant::now(), zones: Vec::new(), zones_at: None, gpu: Vec::new(), gpu_at: None }
+        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, proc_kind());
+        Monitor {
+            sys,
+            nets: Networks::new_with_refreshed_list(),
+            last: Instant::now(),
+            sensors: Vec::new(),
+            sensors_at: None,
+            zones: Vec::new(),
+            zones_at: None,
+            gpu: Vec::new(),
+            gpu_at: None,
+            disks: Vec::new(),
+            disks_at: None,
+        }
     }
 
     pub fn specs(&mut self) -> Specs {
@@ -124,12 +163,15 @@ impl Monitor {
         self.last = Instant::now();
         self.sys.refresh_cpu_usage();
         self.sys.refresh_memory();
-        self.sys.refresh_processes(ProcessesToUpdate::All, true);
+        self.sys.refresh_processes_specifics(ProcessesToUpdate::All, true, proc_kind());
         self.nets.refresh(true);
         let (down, up) = net_totals(&self.nets);
         let cores = self.sys.cpus().len().max(1) as f32;
         let (top_cpu, top_mem) = rankings(&self.sys, cores);
-        let disks = Disks::new_with_refreshed_list();
+        if due(self.disks_at, DISKS_EVERY, false) {
+            self.disks = disk_list(&Disks::new_with_refreshed_list());
+            self.disks_at = Some(Instant::now());
+        }
         let gpu = self.gpu();
         let mut temps = self.temps();
         for g in &gpu {
@@ -144,7 +186,7 @@ impl Monitor {
             cpu: self.sys.global_cpu_usage(),
             ram_used: self.sys.used_memory(),
             ram_total: self.sys.total_memory(),
-            disks: disk_list(&disks),
+            disks: self.disks.clone(),
             temps,
             uptime: System::uptime(),
             net_down: (down as f64 / secs) as u64,
@@ -156,11 +198,14 @@ impl Monitor {
     }
 
     /// Sensores del propio sistema y, si no hay o además, las zonas térmicas de Windows.
-    /// Cuando no se encontró nada se vuelve a intentar solo cada minuto.
+    /// Cuando no se encontró nada se vuelve a intentar solo cada pocos minutos.
     fn temps(&mut self) -> Vec<Temp> {
-        let mut out = read_temps();
-        let wait = Duration::from_secs(if self.zones.is_empty() { 60 } else { 6 });
-        if self.zones_at.is_none_or(|t| t.elapsed() >= wait) {
+        if due(self.sensors_at, SENSORS_EVERY, self.sensors.is_empty()) {
+            self.sensors = read_temps();
+            self.sensors_at = Some(Instant::now());
+        }
+        let mut out = self.sensors.clone();
+        if due(self.zones_at, ZONES_EVERY, self.zones.is_empty()) {
             self.zones = std::panic::catch_unwind(imp::zone_temps).unwrap_or_default();
             self.zones_at = Some(Instant::now());
         }
@@ -173,8 +218,7 @@ impl Monitor {
     }
 
     fn gpu(&mut self) -> Vec<GpuLive> {
-        let wait = Duration::from_secs(if self.gpu.is_empty() { 60 } else { 0 });
-        if self.gpu_at.is_none_or(|t| t.elapsed() >= wait) {
+        if due(self.gpu_at, GPU_EVERY, self.gpu.is_empty()) {
             self.gpu = std::panic::catch_unwind(imp::nvidia).unwrap_or_default();
             self.gpu_at = Some(Instant::now());
         }

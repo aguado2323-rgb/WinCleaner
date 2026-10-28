@@ -16,7 +16,9 @@
   import Report from './Report.svelte';
   import Schedule from './Schedule.svelte';
   import Monitor from './Monitor.svelte';
-  import { i18n } from './i18n.svelte.js';
+  import { i18n, followSystem } from './i18n.svelte.js';
+
+  followSystem(invoke);
 
   const sections = [
     ['clean', 'Limpieza'],
@@ -76,6 +78,26 @@
     }
   }
 
+  // Monitor del equipo: se enciende y apaga desde la barra lateral y se recuerda la elección.
+  // La primera vez arranca encendido solo si la ventana es lo bastante ancha para tenerlo al lado.
+  let monitorOn = $state((() => {
+    try {
+      const saved = localStorage.getItem('wc-monitor');
+      if (saved === 'on' || saved === 'off') return saved === 'on';
+    } catch {
+      /* sin almacenamiento */
+    }
+    return window.innerWidth >= 1240;
+  })());
+  function setMonitor(on) {
+    monitorOn = on;
+    try {
+      localStorage.setItem('wc-monitor', on ? 'on' : 'off');
+    } catch {
+      /* vale para esta sesión */
+    }
+  }
+
   let view = $state('clean');
   let q = $state({ path: '', batches: [] });
   let toast = $state(null);
@@ -107,20 +129,28 @@
   <aside>
     <div class="brand">
       <svg class="logo" viewBox="0 0 256 256" aria-hidden="true">
-  <rect width="256" height="256" rx="60" fill="#ff4d00"/>
-  <path d="M40 92V74a18 18 0 0 1 18-18h108a18 18 0 0 1 18 18v18z" fill="#151512"/>
-  <path d="M40 92h144v70a18 18 0 0 1-18 18H58a18 18 0 0 1-18-18z" fill="#f3f1ea"/>
-  <circle cx="62" cy="74" r="6" fill="#f3f1ea"/>
-  <circle cx="82" cy="74" r="6" fill="#f3f1ea" opacity=".6"/>
-  <g transform="translate(156 132) rotate(38) scale(0.98)">
-    <path d="M-20 22L20 22L50 108L36 100L26 112L12 101L0 114L-12 101L-26 112L-36 100L-50 108Z" fill="#f3f1ea" stroke="#ff4d00" stroke-width="10" stroke-linejoin="round"/>
-    <path d="M-20 22L20 22L50 108L36 100L26 112L12 101L0 114L-12 101L-26 112L-36 100L-50 108Z" fill="#f3f1ea"/>
-    <path d="M-9 34L-17 98M0 34V104M9 34L17 98" stroke="#ff4d00" stroke-width="4.5" stroke-linecap="round"/>
-    <rect x="-7" y="-112" width="14" height="150" rx="7" fill="#151512" stroke="#ff4d00" stroke-width="8"/>
-    <rect x="-25" y="12" width="50" height="22" rx="4" fill="#151512" stroke="#ff4d00" stroke-width="8"/>
-    <path d="M-25 23H25" stroke="#f3f1ea" stroke-width="2.5" stroke-dasharray="5 5"/>
-  </g>
-</svg>
+        <defs>
+          <mask id="logo-cuts" maskUnits="userSpaceOnUse" x="-200" y="-200" width="400" height="400">
+            <rect x="-200" y="-200" width="400" height="400" fill="#fff" />
+            <g stroke="#000" stroke-linecap="round">
+              <path d="M-44 31H44" stroke-width="10" />
+              <path d="M-19 52L-30 106M0 52V110M19 52L30 106" stroke-width="9" />
+            </g>
+          </mask>
+        </defs>
+        <g fill="var(--accent)">
+          <g transform="translate(132 116) rotate(40) scale(0.86)">
+            <g mask="url(#logo-cuts)">
+              <rect x="-12" y="-128" width="24" height="126" rx="12" />
+              <rect x="-40" y="-8" width="80" height="44" rx="10" />
+              <path d="M-40 40H40L68 104Q70 120 54 120H-54Q-70 120 -68 104Z" />
+            </g>
+          </g>
+          <path d="M205 150l8 19 19 8-19 8-8 19-8-19-19-8 19-8z" />
+          <path d="M222 210l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" />
+          <path d="M44 52l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" />
+        </g>
+      </svg>
       <span>Win<b>Cleaner</b></span>
     </div>
 
@@ -133,6 +163,11 @@
         </button>
       {/each}
     </nav>
+
+    <button class="theme push" class:on={monitorOn} onclick={() => setMonitor(!monitorOn)} aria-pressed={monitorOn}>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4l2.5-6 4 11 2.5-5H21" /></svg>
+      <span>{monitorOn ? t('Ocultar el monitor') : t('Mostrar el monitor')}</span>
+    </button>
 
     <button class="theme" onclick={toggleTheme} aria-label={theme === 'dark' ? t('Cambiar a modo claro') : t('Cambiar a modo oscuro')}>
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -186,7 +221,7 @@
         {/if}
       </div>
     {/key}
-    {#if view !== 'uninstall'}<Monitor />{/if}
+    {#if monitorOn}<Monitor floating={view === 'uninstall'} onclose={() => setMonitor(false)} />{/if}
     </div>
   </main>
 
@@ -203,7 +238,7 @@
   aside { display: flex; flex-direction: column; overflow-y: auto; padding: 24px 12px 20px; background: var(--side); color: var(--side-ink); }
   .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px; margin-bottom: 30px; font-family: var(--display); font-size: 20px; letter-spacing: -0.03em; }
   .brand b { font-weight: 700; color: var(--accent); }
-  .logo { flex: none; width: 36px; height: 36px; border-radius: 9px; }
+  .logo { flex: none; width: 36px; height: 36px; }
   nav { display: flex; flex-direction: column; gap: 2px; }
   nav button { position: relative; display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 9px 10px; border-radius: 8px; text-align: left; color: var(--side-dim); transition: color 0.12s, background 0.12s; }
   nav button:hover { color: var(--side-ink); background: rgb(255 255 255 / 0.06); }
@@ -217,7 +252,10 @@
   .lang { display: flex; gap: 6px; margin-top: 10px; }
   .lang button { flex: 1; border: 1px solid rgb(255 255 255 / 0.14); background: none; border-radius: 8px; padding: 6px 0; color: var(--side-dim); font-family: var(--mono); font-size: 12px; }
   .lang button.on { color: var(--side-ink); background: rgb(255 255 255 / 0.09); border-color: rgb(255 255 255 / 0.3); }
-  .theme { margin-top: auto; display: flex; align-items: center; gap: 12px; border: 1px solid rgb(255 255 255 / 0.14); background: none; border-radius: 8px; padding: 9px 12px; color: var(--side-dim); font-size: 13px; transition: color 0.12s, border-color 0.12s; }
+  .theme { margin-top: 8px; display: flex; align-items: center; gap: 12px; border: 1px solid rgb(255 255 255 / 0.14); background: none; border-radius: 8px; padding: 9px 12px; color: var(--side-dim); font-size: 13px; transition: color 0.12s, border-color 0.12s; }
+  .theme.push { margin-top: auto; }
+  .theme.on { color: var(--side-ink); border-color: rgb(255 255 255 / 0.3); }
+  .theme.on .ico { color: var(--accent); }
   .theme:hover { color: var(--side-ink); border-color: rgb(255 255 255 / 0.3); }
   .theme .ico { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   main { overflow-y: auto; }
