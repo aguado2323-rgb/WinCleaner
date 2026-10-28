@@ -6,6 +6,7 @@ mod debloat;
 mod disk;
 mod restore;
 mod startup;
+mod uninstall;
 mod rules;
 
 pub use clean::{
@@ -20,3 +21,7 @@ pub use restore::{
     RestorePoint,
 };
 pub use debloat::{debloat_remove, debloat_scan, Installed, RemoveResult, Risk};
+pub use uninstall::{
+    find_leftovers, list_programs, remove_leftovers, restore_registry, uninstall_program, Leftover,
+    LeftoverKind, LeftoverOutcome, Program, UninstallOutcome,
+};

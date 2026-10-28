@@ -4,10 +4,11 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, is_admin, list_batches,
-    list_restore_points, open_system_restore, purge_batch, relaunch_as_admin, restore_batch,
+    builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
+    list_programs, list_restore_points, open_system_restore, purge_batch, relaunch_as_admin,
+    remove_leftovers, restore_batch, restore_registry, uninstall_program,
     scan_dir, scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
-    Installed, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem,
+    Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
 #[derive(Serialize)]
@@ -175,6 +176,47 @@ fn restore_open() -> Result<(), String> {
     open_system_restore()
 }
 
+fn data_dir() -> PathBuf {
+    quarantine_dir().parent().map(PathBuf::from).unwrap_or_else(std::env::temp_dir)
+}
+
+fn now_batch() -> String {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0).to_string()
+}
+
+#[tauri::command]
+async fn programs_list() -> Result<Vec<Program>, String> {
+    tauri::async_runtime::spawn_blocking(list_programs).await.map_err(|e| e.to_string())
+}
+
+/// Espera a que termine el desinstalador oficial, así que corre en un hilo aparte.
+#[tauri::command]
+async fn program_uninstall(id: String) -> Result<UninstallOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || uninstall_program(&id)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn leftovers_find(name: String, publisher: String, location: String) -> Result<Vec<Leftover>, String> {
+    tauri::async_runtime::spawn_blocking(move || find_leftovers(&name, &publisher, &location))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Las rutas vuelven desde la interfaz, así que el núcleo las valida de nuevo una a una.
+#[tauri::command]
+async fn leftovers_remove(items: Vec<Leftover>) -> Result<LeftoverOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || remove_leftovers(&items, &data_dir(), &now_batch()))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn registry_restore(batch: String) -> Result<u64, String> {
+    tauri::async_runtime::spawn_blocking(move || restore_registry(&data_dir(), &batch))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Apps del catálogo de debloat que están instaladas. PowerShell tarda: hilo aparte.
 #[tauri::command]
 async fn debloat_list() -> Result<Vec<Installed>, String> {
@@ -197,7 +239,7 @@ fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, programs_list, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
