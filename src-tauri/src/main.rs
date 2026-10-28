@@ -456,6 +456,10 @@ async fn usage_report() -> Result<UsageReport, String> {
     tauri::async_runtime::spawn_blocking(|| history_report(&data_dir(), now_secs())).await.map_err(|e| e.to_string())
 }
 
+/// El monitor se crea en la primera muestra, en un hilo de trabajo: leer sensores inicia COM en ese hilo y,
+/// hecho en el hilo principal antes de abrir la ventana, choca con el WebView2 y la app no arranca.
+type MonitorState = Arc<Mutex<Option<Monitor>>>;
+
 /// Especificaciones fijas del equipo (la consulta de la tarjeta gráfica tarda: va en otro hilo).
 #[tauri::command]
 async fn monitor_specs() -> Result<MonitorSpecs, String> {
@@ -464,9 +468,9 @@ async fn monitor_specs() -> Result<MonitorSpecs, String> {
 
 /// Muestra en vivo; el monitor se conserva entre llamadas porque la CPU se mide entre dos lecturas.
 #[tauri::command]
-async fn monitor_sample(state: tauri::State<'_, Arc<Mutex<Monitor>>>) -> Result<MonitorLive, String> {
+async fn monitor_sample(state: tauri::State<'_, MonitorState>) -> Result<MonitorLive, String> {
     let monitor = Arc::clone(&state);
-    tauri::async_runtime::spawn_blocking(move || monitor.lock().map(|mut m| m.sample()).map_err(|e| e.to_string()))
+    tauri::async_runtime::spawn_blocking(move || monitor.lock().map(|mut m| m.get_or_insert_with(Monitor::new).sample()).map_err(|e| e.to_string()))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -478,7 +482,7 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .manage(Arc::new(Mutex::new(Monitor::new())))
+        .manage(MonitorState::default())
         .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now, monitor_specs, monitor_sample])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
