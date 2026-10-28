@@ -8,6 +8,7 @@ mod disk;
 mod duplicates;
 mod power;
 mod history;
+mod locale;
 mod protect;
 mod recycle;
 mod restore;
@@ -25,6 +26,7 @@ pub use clean::{
     ScanResult,
 };
 pub use background::low_priority;
+pub use locale::system_language;
 pub use rules::{builtin_rules, expand_env, Rule};
 pub use disk::{drives, scan_dir, Child, DirReport, FileEntry};
 pub use startup::{list as startup_list, set_enabled as startup_set_enabled, StartupItem};

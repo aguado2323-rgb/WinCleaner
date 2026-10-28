@@ -1,15 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="60" fill="#ff4d00"/>
-  <path d="M40 92V74a18 18 0 0 1 18-18h108a18 18 0 0 1 18 18v18z" fill="#151512"/>
-  <path d="M40 92h144v70a18 18 0 0 1-18 18H58a18 18 0 0 1-18-18z" fill="#f3f1ea"/>
-  <circle cx="62" cy="74" r="6" fill="#f3f1ea"/>
-  <circle cx="82" cy="74" r="6" fill="#f3f1ea" opacity=".6"/>
-  <g transform="translate(156 132) rotate(38) scale(0.98)">
-    <path d="M-20 22L20 22L50 108L36 100L26 112L12 101L0 114L-12 101L-26 112L-36 100L-50 108Z" fill="#f3f1ea" stroke="#ff4d00" stroke-width="10" stroke-linejoin="round" paint-order="stroke"/>
-    <path d="M-20 22L20 22L50 108L36 100L26 112L12 101L0 114L-12 101L-26 112L-36 100L-50 108Z" fill="#f3f1ea"/>
-    <path d="M-9 34L-17 98M0 34V104M9 34L17 98" stroke="#ff4d00" stroke-width="4.5" stroke-linecap="round"/>
-    <rect x="-7" y="-112" width="14" height="150" rx="7" fill="#151512" stroke="#ff4d00" stroke-width="8" paint-order="stroke"/>
-    <rect x="-25" y="12" width="50" height="22" rx="4" fill="#151512" stroke="#ff4d00" stroke-width="8" paint-order="stroke"/>
-    <path d="M-25 23H25" stroke="#f3f1ea" stroke-width="2.5" stroke-dasharray="5 5"/>
+  <defs>
+    <mask id="cuts" maskUnits="userSpaceOnUse" x="-200" y="-200" width="400" height="400">
+      <rect x="-200" y="-200" width="400" height="400" fill="#fff"/>
+      <g stroke="#000" stroke-linecap="round">
+        <path d="M-44 31H44" stroke-width="10"/>
+        <path d="M-19 52L-30 106M0 52V110M19 52L30 106" stroke-width="9"/>
+      </g>
+    </mask>
+  </defs>
+  <g fill="#ff4d00">
+    <g transform="translate(132 116) rotate(40) scale(0.86)">
+      <g mask="url(#cuts)">
+        <rect x="-12" y="-128" width="24" height="126" rx="12"/>
+        <rect x="-40" y="-8" width="80" height="44" rx="10"/>
+        <path d="M-40 40H40L68 104Q70 120 54 120H-54Q-70 120 -68 104Z"/>
+      </g>
+    </g>
+    <path d="M205 150l8 19 19 8-19 8-8 19-8-19-19-8 19-8z"/>
+    <path d="M222 210l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/>
+    <path d="M44 52l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/>
   </g>
 </svg>

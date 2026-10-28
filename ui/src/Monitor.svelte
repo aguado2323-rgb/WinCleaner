@@ -1,13 +1,20 @@
+<script module>
+  // Las especificaciones no cambian: se piden una vez aunque el monitor se apague y se vuelva a encender.
+  let savedSpecs = null;
+</script>
+
 <script>
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
   import { fmt } from './format.js';
   import { t } from './i18n.svelte.js';
 
-  const MIN_WIDTH = 1500; // por debajo no cabe junto a la pantalla: el panel se oculta y no consulta nada
-  const HISTORY = 40;
+  // `floating`: el panel va encima, a la derecha (en Desinstalar, que necesita todo el ancho). En ventanas
+  // estrechas el CSS hace lo mismo por su cuenta.
+  // `onclose`: el botón «×» del panel apaga el monitor, igual que el botón de la barra lateral.
+  let { floating = false, onclose } = $props();
 
-  let visible = $state(false);
+  const HISTORY = 40;
   let specs = $state(null);
   let live = $state(null);
   let history = $state([]);
@@ -42,37 +49,34 @@
   }
 
   async function loadSpecs() {
+    if (savedSpecs) return (specs = savedSpecs);
     try {
-      specs = await invoke('monitor_specs');
+      specs = savedSpecs = await invoke('monitor_specs');
     } catch {
       /* sin especificaciones: el resto del panel sigue funcionando */
     }
   }
 
   onMount(() => {
+    // El panel solo existe mientras el monitor está activado; su colocación (al lado o encima) la decide
+    // el CSS según el ancho, así que nunca desaparece al redimensionar. Con la ventana minimizada u oculta
+    // no se consulta nada: nadie mira el panel y cada muestra cuesta CPU.
     let timer;
-    // Se decide con el ancho real de la ventana en cada cambio de tamaño: los eventos de media query
-    // no siempre llegan en WebView2 y el panel se quedaba oculto hasta cambiar de pantalla.
-    // Con la ventana minimizada u oculta no se consulta nada: nadie mira el panel y cada muestra cuesta CPU.
     const sync = () => {
-      const want = window.innerWidth >= MIN_WIDTH;
-      const poll = want && !document.hidden;
-      visible = want;
+      const poll = !document.hidden;
       if (poll === Boolean(timer)) return;
       clearInterval(timer);
       timer = undefined;
       if (poll) {
-        if (!specs) loadSpecs();
         sample();
         timer = setInterval(sample, 2000);
       }
     };
+    loadSpecs();
     sync();
-    window.addEventListener('resize', sync);
     document.addEventListener('visibilitychange', sync);
     return () => {
       clearInterval(timer);
-      window.removeEventListener('resize', sync);
       document.removeEventListener('visibilitychange', sync);
     };
   });
@@ -84,110 +88,120 @@
   let cpuPct = $derived(live ? Math.round(live.cpu) : 0);
 </script>
 
-{#if visible}
-  <aside class="mon" aria-label={t('Monitor del equipo')}>
+<aside class="mon" class:floating aria-label={t('Monitor del equipo')}>
+  <div class="head">
     <p class="label">{t('Monitor')}</p>
+    <button class="close" onclick={onclose} aria-label={t('Ocultar el monitor')} title={t('Ocultar el monitor')}>×</button>
+  </div>
 
-    {#if failed && !live}
-      <p class="note">{t('No se pudo leer el estado del equipo.')}</p>
-    {:else if live}
-      <section>
-        <div class="row"><span class="k">CPU</span><b class="num {tone(cpuPct)}">{cpuPct}%</b></div>
-        <div class="spark" role="img" aria-label={t('Uso de CPU en los últimos segundos')}>
-          {#each history as h, i (i)}<i style="height:{Math.max(3, h)}%"></i>{/each}
+  {#if failed && !live}
+    <p class="note">{t('No se pudo leer el estado del equipo.')}</p>
+  {:else if live}
+    <section>
+      <div class="row"><span class="k">CPU</span><b class="num {tone(cpuPct)}">{cpuPct}%</b></div>
+      <div class="spark" role="img" aria-label={t('Uso de CPU en los últimos segundos')}>
+        {#each history as h, i (i)}<i style="height:{Math.max(3, h)}%"></i>{/each}
+      </div>
+    </section>
+
+    <section>
+      <div class="row"><span class="k">RAM</span><b class="num {tone(ramPct)}">{ramPct}%</b></div>
+      <div class="bar"><i class={tone(ramPct)} style="width:{ramPct}%"></i></div>
+      <p class="sub num">{fmt(live.ram_used)} / {fmt(live.ram_total)}</p>
+    </section>
+
+    <section>
+      <p class="k">{t('Discos')}</p>
+      {#each live.disks as d (d.mount)}
+        {@const used = d.total - d.free}
+        {@const p = pct(used, d.total)}
+        <div class="disk">
+          <div class="row"><span class="num">{d.mount.replace(/[\\/]+$/, '')}{d.name ? ' · ' + d.name : ''}</span><span class="num sub">{p}%</span></div>
+          <div class="bar"><i class={tone(p)} style="width:{p}%"></i></div>
+          <p class="sub num">{t('{a} libres de {b}', { a: fmt(d.free), b: fmt(d.total) })}</p>
         </div>
-      </section>
+      {/each}
+    </section>
 
-      <section>
-        <div class="row"><span class="k">RAM</span><b class="num {tone(ramPct)}">{ramPct}%</b></div>
-        <div class="bar"><i class={tone(ramPct)} style="width:{ramPct}%"></i></div>
-        <p class="sub num">{fmt(live.ram_used)} / {fmt(live.ram_total)}</p>
-      </section>
+    <section>
+      <p class="k">{t('Red')}</p>
+      <div class="row"><span class="sub">↓ {t('Bajada')}</span><b class="num small">{rate(live.net_down)}</b></div>
+      <div class="row"><span class="sub">↑ {t('Subida')}</span><b class="num small">{rate(live.net_up)}</b></div>
+      <div class="spark thin" role="img" aria-label={t('Velocidad de bajada en los últimos segundos')}>
+        {#each netHistory as h, i (i)}<i style="height:{Math.max(3, (h / netMax) * 100)}%"></i>{/each}
+      </div>
+    </section>
 
+    {#if live.gpu.length}
       <section>
-        <p class="k">{t('Discos')}</p>
-        {#each live.disks as d (d.mount)}
-          {@const used = d.total - d.free}
-          {@const p = pct(used, d.total)}
-          <div class="disk">
-            <div class="row"><span class="num">{d.mount.replace(/[\\/]+$/, '')}{d.name ? ' · ' + d.name : ''}</span><span class="num sub">{p}%</span></div>
-            <div class="bar"><i class={tone(p)} style="width:{p}%"></i></div>
-            <p class="sub num">{t('{a} libres de {b}', { a: fmt(d.free), b: fmt(d.total) })}</p>
-          </div>
+        <p class="k">GPU</p>
+        {#each live.gpu as g (g.name)}
+          {@const gp = pct(g.mem_used, g.mem_total)}
+          <div class="row"><span class="sub">{g.name}</span><b class="num small {tone(Math.round(g.util))}">{Math.round(g.util)}%</b></div>
+          <div class="bar"><i class={tone(Math.round(g.util))} style="width:{Math.round(g.util)}%"></i></div>
+          {#if g.mem_total}<p class="sub num">{t('VRAM {a} / {b}', { a: fmt(g.mem_used), b: fmt(g.mem_total) })} ({gp}%)</p>{/if}
         {/each}
       </section>
-
-      <section>
-        <p class="k">{t('Red')}</p>
-        <div class="row"><span class="sub">↓ {t('Bajada')}</span><b class="num small">{rate(live.net_down)}</b></div>
-        <div class="row"><span class="sub">↑ {t('Subida')}</span><b class="num small">{rate(live.net_up)}</b></div>
-        <div class="spark thin" role="img" aria-label={t('Velocidad de bajada en los últimos segundos')}>
-          {#each netHistory as h, i (i)}<i style="height:{Math.max(3, (h / netMax) * 100)}%"></i>{/each}
-        </div>
-      </section>
-
-      {#if live.gpu.length}
-        <section>
-          <p class="k">GPU</p>
-          {#each live.gpu as g (g.name)}
-            {@const gp = pct(g.mem_used, g.mem_total)}
-            <div class="row"><span class="sub">{g.name}</span><b class="num small {tone(Math.round(g.util))}">{Math.round(g.util)}%</b></div>
-            <div class="bar"><i class={tone(Math.round(g.util))} style="width:{Math.round(g.util)}%"></i></div>
-            {#if g.mem_total}<p class="sub num">{t('VRAM {a} / {b}', { a: fmt(g.mem_used), b: fmt(g.mem_total) })} ({gp}%)</p>{/if}
-          {/each}
-        </section>
-      {/if}
-
-      <section>
-        <p class="k">{t('Programas que más gastan')}</p>
-        {#if live.top_cpu.length}
-          <p class="sub">CPU</p>
-          {#each live.top_cpu as h (h.name)}
-            <div class="row"><span class="nm" title={h.name}>{h.name}</span><span class="num sub">{h.cpu.toFixed(h.cpu < 10 ? 1 : 0)}%</span></div>
-          {/each}
-        {/if}
-        <p class="sub">RAM</p>
-        {#each live.top_mem as h (h.name)}
-          <div class="row"><span class="nm" title={h.name}>{h.name}</span><span class="num sub">{fmt(h.mem)}</span></div>
-        {/each}
-      </section>
-
-      <section>
-        <p class="k">{t('Temperaturas')}</p>
-        {#if live.temps.length}
-          {#each live.temps.slice(0, 6) as tp (tp.label)}
-            <div class="row"><span class="sub">{tp.label}</span><b class="num small {tp.celsius >= 85 ? 'hot' : tp.celsius >= 70 ? 'warm' : ''}">{Math.round(tp.celsius)} °C</b></div>
-          {/each}
-        {:else}
-          <p class="sub">{t('Este equipo no permite leer temperaturas desde Windows.')}</p>
-        {/if}
-      </section>
-
-      {#if specs}
-        <section>
-          <p class="k">{t('Equipo')}</p>
-          <dl>
-            {#if specs.host}<dt>{t('Nombre')}</dt><dd>{specs.host}</dd>{/if}
-            {#if specs.os}<dt>{t('Sistema')}</dt><dd>{specs.os}</dd>{/if}
-            {#if specs.cpu}<dt>CPU</dt><dd>{specs.cpu}<small>{t('{p} núcleos · {l} hilos', { p: specs.physical_cores, l: specs.logical_cores })}</small></dd>{/if}
-            <dt>RAM</dt><dd>{fmt(specs.ram_total)}</dd>
-            {#each specs.gpus as g, i (g)}<dt>{i ? '' : 'GPU'}</dt><dd>{g}</dd>{/each}
-            {#each specs.drives as d (d.name)}
-              <dt>{t('Disco')}</dt>
-              <dd>{d.name}<small>{d.media}{d.size ? ' · ' + fmt(d.size) : ''} · <span class:bad={!healthy(d.health)}>{healthy(d.health) ? t('Salud: correcta') : t('Salud') + ': ' + d.health}</span></small></dd>
-            {/each}
-            <dt>{t('Encendido')}</dt><dd>{uptime(live.uptime)}</dd>
-          </dl>
-        </section>
-      {/if}
-    {:else}
-      <p class="sub num">···</p>
     {/if}
-  </aside>
-{/if}
+
+    <section>
+      <p class="k">{t('Programas que más gastan')}</p>
+      {#if live.top_cpu.length}
+        <p class="sub">CPU</p>
+        {#each live.top_cpu as h (h.name)}
+          <div class="row"><span class="nm" title={h.name}>{h.name}</span><span class="num sub">{h.cpu.toFixed(h.cpu < 10 ? 1 : 0)}%</span></div>
+        {/each}
+      {/if}
+      <p class="sub">RAM</p>
+      {#each live.top_mem as h (h.name)}
+        <div class="row"><span class="nm" title={h.name}>{h.name}</span><span class="num sub">{fmt(h.mem)}</span></div>
+      {/each}
+    </section>
+
+    <section>
+      <p class="k">{t('Temperaturas')}</p>
+      {#if live.temps.length}
+        {#each live.temps.slice(0, 6) as tp (tp.label)}
+          <div class="row"><span class="sub">{tp.label}</span><b class="num small {tp.celsius >= 85 ? 'hot' : tp.celsius >= 70 ? 'warm' : ''}">{Math.round(tp.celsius)} °C</b></div>
+        {/each}
+      {:else}
+        <p class="sub">{t('Este equipo no permite leer temperaturas desde Windows.')}</p>
+      {/if}
+    </section>
+
+    {#if specs}
+      <section>
+        <p class="k">{t('Equipo')}</p>
+        <dl>
+          {#if specs.host}<dt>{t('Nombre')}</dt><dd>{specs.host}</dd>{/if}
+          {#if specs.os}<dt>{t('Sistema')}</dt><dd>{specs.os}</dd>{/if}
+          {#if specs.cpu}<dt>CPU</dt><dd>{specs.cpu}<small>{t('{p} núcleos · {l} hilos', { p: specs.physical_cores, l: specs.logical_cores })}</small></dd>{/if}
+          <dt>RAM</dt><dd>{fmt(specs.ram_total)}</dd>
+          {#each specs.gpus as g, i (g)}<dt>{i ? '' : 'GPU'}</dt><dd>{g}</dd>{/each}
+          {#each specs.drives as d (d.name)}
+            <dt>{t('Disco')}</dt>
+            <dd>{d.name}<small>{d.media}{d.size ? ' · ' + fmt(d.size) : ''} · <span class:bad={!healthy(d.health)}>{healthy(d.health) ? t('Salud: correcta') : t('Salud') + ': ' + d.health}</span></small></dd>
+          {/each}
+          <dt>{t('Encendido')}</dt><dd>{uptime(live.uptime)}</dd>
+        </dl>
+      </section>
+    {/if}
+  {:else}
+    <p class="sub num">···</p>
+  {/if}
+</aside>
 
 <style>
   .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 330px; margin: 32px 32px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; max-height: calc(100vh - 64px); overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .head .label { margin: 0; }
+  .close { border: 0; background: none; padding: 0 4px; font-size: 20px; line-height: 1; color: var(--ink-3); }
+  .close:hover { color: var(--ink); }
+  /* Ventana estrecha: el panel no cabe al lado y se superpone a la derecha en vez de ocultarse. */
+  @media (max-width: 1239px) {
+    .mon { position: fixed; top: 0; right: 0; bottom: 0; z-index: 5; width: 300px; max-height: none; margin: 0; padding: 24px 20px 24px 24px; background: var(--paper); box-shadow: -10px 0 30px rgb(0 0 0 / 0.18); }
+  }
+  .mon.floating { position: fixed; top: 0; right: 0; bottom: 0; z-index: 5; width: 300px; max-height: none; margin: 0; padding: 24px 20px 24px 24px; background: var(--paper); box-shadow: -10px 0 30px rgb(0 0 0 / 0.18); }
   section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
   .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
   .row > :last-child { flex: none; }

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, low_priority, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
+    builtin_rules, clean_rule, low_priority, system_language, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
     list_programs, program_icons, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
@@ -36,6 +36,12 @@ fn quarantine_dir() -> PathBuf {
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
     base.join("WinCleaner").join("Quarantine")
+}
+
+/// Idioma de Windows («es» o «en») para elegir el de la interfaz al abrir la app.
+#[tauri::command]
+fn system_lang() -> String {
+    system_language().into()
 }
 
 #[tauri::command]
@@ -486,7 +492,7 @@ fn main() {
     }
     tauri::Builder::default()
         .manage(MonitorState::default())
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now, monitor_specs, monitor_sample])
+        .invoke_handler(tauri::generate_handler![system_lang, list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now, monitor_specs, monitor_sample])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
