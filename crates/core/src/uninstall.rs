@@ -22,6 +22,13 @@ pub struct Program {
     pub version: String,
     pub location: String,
     pub size_kb: u64,
+    /// `AAAA-MM-DD` o vacío si el programa no lo declara.
+    pub install_date: String,
+    /// Última vez que se abrió (aproximada, de los registros de uso de Windows) o vacío.
+    pub last_used: String,
+    /// Origen del icono (`DisplayIcon` del registro). No se envía a la interfaz.
+    #[serde(skip)]
+    pub icon_src: String,
     /// Instalado para todos los usuarios (HKLM): desinstalar pide permisos de administrador.
     pub machine_wide: bool,
 }
@@ -165,6 +172,88 @@ pub fn publisher_variants(publisher: &str) -> Vec<String> {
     out
 }
 
+// ---------------------------------------------------------------- fechas y uso
+
+/// `20261027` → `2026-10-27`. Cualquier otra cosa → vacío.
+pub fn parse_install_date(raw: &str) -> String {
+    let d = raw.trim();
+    let ok = d.len() == 8 && d.bytes().all(|b| b.is_ascii_digit()) && &d[0..4] >= "1990" && &d[4..6] <= "12" && &d[6..8] <= "31";
+    if ok {
+        format!("{}-{}-{}", &d[0..4], &d[4..6], &d[6..8])
+    } else {
+        String::new()
+    }
+}
+
+/// `"C:\\Foo\\app.exe",0` → `C:\\Foo\\app.exe`. Quita comillas y el índice del icono.
+pub fn icon_path(display_icon: &str) -> String {
+    let t = display_icon.trim();
+    let t = if let Some(rest) = t.strip_prefix('"') {
+        rest.split('"').next().unwrap_or("")
+    } else {
+        t.rsplit_once(',').map_or(t, |(p, idx)| if idx.trim().trim_start_matches('-').bytes().all(|b| b.is_ascii_digit()) { p } else { t })
+    };
+    t.trim().to_string()
+}
+
+/// FILETIME de Windows (100 ns desde 1601) → `AAAA-MM-DD`. 0 → vacío.
+pub fn filetime_to_date(ft: u64) -> String {
+    if ft == 0 {
+        return String::new();
+    }
+    let unix_secs = (ft / 10_000_000) as i64 - 11_644_473_600;
+    let z = unix_secs.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+pub fn rot13(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'a'..='z' => (((c as u8 - b'a') + 13) % 26 + b'a') as char,
+            'A'..='Z' => (((c as u8 - b'A') + 13) % 26 + b'A') as char,
+            _ => c,
+        })
+        .collect()
+}
+
+/// Una entrada de «UserAssist»: Windows anota ahí (con el nombre en ROT13) cada programa que
+/// abres desde el Explorador. Devuelve (ruta en minúsculas, FILETIME de la última ejecución).
+pub fn userassist_entry(name_rot13: &str, data: &[u8]) -> Option<(String, u64)> {
+    if data.len() < 68 {
+        return None;
+    }
+    let ft = u64::from_le_bytes(data[60..68].try_into().ok()?);
+    (ft > 0).then(|| (rot13(name_rot13).to_lowercase().replace('/', "\\"), ft))
+}
+
+/// Última ejecución conocida de un programa: busca entradas cuya ruta pase por la carpeta del
+/// programa (por su último componente, de al menos 4 letras) y devuelve la fecha más reciente.
+pub fn last_used(entries: &[(String, u64)], location: &str, icon_src: &str) -> String {
+    // Se parte a mano por `\` y `/`: así funciona igual con rutas de Windows en cualquier sistema.
+    let loc = location.trim().trim_matches('"');
+    let dir = if loc.is_empty() {
+        let icon = icon_path(icon_src);
+        icon.rsplit_once(['\\', '/']).map(|(d, _)| d.to_string()).unwrap_or_default()
+    } else {
+        loc.to_string()
+    };
+    let key = dir.trim_end_matches(['\\', '/']).rsplit(['\\', '/']).next().unwrap_or("").to_lowercase();
+    if key.len() < 4 || is_protected(&key) {
+        return String::new();
+    }
+    let needle = format!("\\{key}\\");
+    let best = entries.iter().filter(|(p, _)| p.contains(&needle)).map(|(_, t)| *t).max().unwrap_or(0);
+    filetime_to_date(best)
+}
+
 // ---------------------------------------------------------------- carpetas
 
 /// Raíces donde puede haber carpetas de un programa. Nada fuera de ellas se propone ni se toca.
@@ -280,7 +369,24 @@ mod imp {
         RegKey::predef(if h == "HKLM" { HKEY_LOCAL_MACHINE } else { HKEY_CURRENT_USER })
     }
 
+    /// Lee «UserAssist» del usuario actual: (ruta en minúsculas, FILETIME de última ejecución).
+    fn userassist() -> Vec<(String, u64)> {
+        let mut out = Vec::new();
+        let path = r"Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist";
+        let Ok(root) = hive("HKCU").open_subkey_with_flags(path, KEY_READ) else { return out };
+        for guid in root.enum_keys().flatten() {
+            let Ok(count) = root.open_subkey_with_flags(format!(r"{guid}\Count"), KEY_READ) else { continue };
+            for (name, value) in count.enum_values().flatten() {
+                if let Some(e) = userassist_entry(&name, &value.bytes) {
+                    out.push(e);
+                }
+            }
+        }
+        out
+    }
+
     pub fn list() -> Vec<Program> {
+        let usage = userassist();
         let mut out: Vec<Program> = Vec::new();
         for (tag, h, base) in UNINSTALL_BASES {
             let Ok(root) = hive(h).open_subkey_with_flags(base, KEY_READ) else { continue };
@@ -302,18 +408,64 @@ mod imp {
                 if out.iter().any(|p| p.name == name && p.version == version) {
                     continue;
                 }
+                let icon_src = s("DisplayIcon");
+                let location = s("InstallLocation");
                 out.push(Program {
+                    install_date: parse_install_date(&s("InstallDate")),
+                    last_used: last_used(&usage, &location, &icon_src),
+                    icon_src,
                     id: make_id(tag, &key_name),
                     name,
                     publisher: s("Publisher"),
                     version,
-                    location: s("InstallLocation"),
+                    location,
                     size_kb: k.get_value::<u32, _>("EstimatedSize").unwrap_or(0) as u64,
                     machine_wide: h == "HKLM",
                 });
             }
         }
         out.sort_by_key(|p| p.name.to_lowercase());
+        out
+    }
+
+    /// Iconos de los programas como PNG en base64. La ruta del icono sale del registro (no de la
+    /// interfaz) y solo se leen archivos `.exe`, `.ico` o `.dll` que existen.
+    pub fn icons(ids: &[String]) -> std::collections::HashMap<String, String> {
+        let mut paths = serde_json::Map::new();
+        for id in ids {
+            let Some((h, path)) = parse_id(id) else { continue };
+            let Ok(key) = hive(h).open_subkey_with_flags(&path, KEY_READ) else { continue };
+            let src = icon_path(&key.get_value::<String, _>("DisplayIcon").unwrap_or_default());
+            let p = Path::new(&src);
+            let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+            if p.is_file() && matches!(ext.as_str(), "exe" | "ico" | "dll") {
+                paths.insert(id.clone(), serde_json::Value::String(src));
+            }
+        }
+        let mut out = std::collections::HashMap::new();
+        let all: Vec<_> = paths.into_iter().collect();
+        for chunk in all.chunks(60) {
+            let json = serde_json::Value::Object(chunk.iter().cloned().collect()).to_string();
+            let script = "Add-Type -AssemblyName System.Drawing; $m = $env:WC_ICONS | ConvertFrom-Json; $o = @{}; \
+                foreach ($p in $m.PSObject.Properties) { try { $i = [System.Drawing.Icon]::ExtractAssociatedIcon($p.Value); \
+                if ($i) { $s = New-Object IO.MemoryStream; $i.ToBitmap().Save($s, [System.Drawing.Imaging.ImageFormat]::Png); \
+                $o[$p.Name] = [Convert]::ToBase64String($s.ToArray()) } } catch {} }; $o | ConvertTo-Json -Compress";
+            let Ok(res) = Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
+                .env("WC_ICONS", json)
+                .creation_flags(CREATE_NO_WINDOW)
+                .output()
+            else {
+                continue;
+            };
+            if let Ok(serde_json::Value::Object(m)) = serde_json::from_slice(&res.stdout) {
+                for (k, v) in m {
+                    if let Some(b64) = v.as_str() {
+                        out.insert(k, b64.to_string());
+                    }
+                }
+            }
+        }
         out
     }
 
@@ -475,6 +627,9 @@ mod imp {
     pub fn list() -> Vec<Program> {
         Vec::new()
     }
+    pub fn icons(_ids: &[String]) -> std::collections::HashMap<String, String> {
+        Default::default()
+    }
     pub fn uninstall(_id: &str) -> UninstallOutcome {
         UninstallOutcome { exit_code: None, removed: false, error: Some(NO.into()) }
     }
@@ -490,7 +645,7 @@ mod imp {
 }
 
 pub use imp::{
-    find_leftovers, list as list_programs, remove_leftovers, restore_registry, uninstall as uninstall_program,
+    find_leftovers, icons as program_icons, list as list_programs, remove_leftovers, restore_registry, uninstall as uninstall_program,
 };
 
 #[cfg(test)]
@@ -564,5 +719,33 @@ mod tests {
         for k in key_candidates("Foo Editor 2.1", "Acme Inc.") {
             assert!(key_allowed(&k), "{k}");
         }
+    }
+
+    #[test]
+    fn dates_and_icons_are_parsed() {
+        assert_eq!(parse_install_date("20261027"), "2026-10-27");
+        assert_eq!(parse_install_date(""), "");
+        assert_eq!(parse_install_date("27/10/2026"), "");
+        assert_eq!(icon_path(r#""C:\Foo\app.exe",0"#), r"C:\Foo\app.exe");
+        assert_eq!(icon_path(r"C:\Foo\app.exe,-12"), r"C:\Foo\app.exe");
+        assert_eq!(icon_path(r"C:\Foo\app.ico"), r"C:\Foo\app.ico");
+        assert_eq!(filetime_to_date(116_444_736_000_000_000), "1970-01-01");
+        assert_eq!(filetime_to_date((1_700_000_000 + 11_644_473_600) * 10_000_000), "2023-11-14");
+        assert_eq!(filetime_to_date(0), "");
+    }
+
+    #[test]
+    fn userassist_gives_last_use_by_folder() {
+        assert_eq!(rot13("Pbaqhgf"), "Conduts");
+        let mut data = vec![0u8; 72];
+        let ft: u64 = (1_700_000_000 + 11_644_473_600) * 10_000_000;
+        data[60..68].copy_from_slice(&ft.to_le_bytes());
+        let e = userassist_entry(&rot13(r"{ABC}\7-Zip\7zFM.exe"), &data).unwrap();
+        assert!(e.0.contains("\\7-zip\\"));
+        assert_eq!(userassist_entry("x", &[0u8; 10]), None);
+        let entries = vec![e];
+        assert_eq!(last_used(&entries, r"C:\Program Files\7-Zip", ""), "2023-11-14");
+        assert_eq!(last_used(&entries, r"C:\Program Files\Otro", ""), "");
+        assert_eq!(last_used(&entries, "", r#""C:\Program Files\7-Zip\7zFM.exe",0"#), "2023-11-14");
     }
 }

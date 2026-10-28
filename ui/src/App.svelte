@@ -64,7 +64,7 @@
 
   <main>
     {#key view}
-      <div class="page">
+      <div class="page" class:wide={view === 'uninstall'}>
         {#if view === 'clean'}
           <Clean {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
         {:else if view === 'space'}
@@ -108,6 +108,7 @@
   .promise { margin: auto 0 0; line-height: 1.9; font-size: 10px; }
   main { overflow-y: auto; }
   .page { max-width: 780px; padding: 32px 40px 70px; animation: fade 0.18s; }
+  .page.wide { max-width: 1060px; }
   .toast { position: fixed; bottom: 20px; left: 216px; display: flex; align-items: center; gap: 18px; background: var(--ink); color: var(--paper); padding: 11px 14px 11px 16px; border-radius: 2px; font-size: 13px; animation: drop 0.18s; }
   .toast button { border: 1px solid var(--paper); background: none; color: var(--paper); padding: 3px 10px; border-radius: 2px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
   .toast button:hover { background: var(--paper); color: var(--ink); }

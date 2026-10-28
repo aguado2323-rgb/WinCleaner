@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
     builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
-    list_programs, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
+    list_programs, program_icons, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     scan_dir, scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
@@ -200,6 +200,12 @@ async fn programs_list() -> Result<Vec<Program>, String> {
     tauri::async_runtime::spawn_blocking(list_programs).await.map_err(|e| e.to_string())
 }
 
+/// Iconos (PNG en base64) de los programas pedidos; PowerShell tarda, así que va en un hilo aparte.
+#[tauri::command]
+async fn programs_icons(ids: Vec<String>) -> Result<std::collections::HashMap<String, String>, String> {
+    tauri::async_runtime::spawn_blocking(move || program_icons(&ids)).await.map_err(|e| e.to_string())
+}
+
 /// Espera a que termine el desinstalador oficial, así que corre en un hilo aparte.
 #[tauri::command]
 async fn program_uninstall(id: String) -> Result<UninstallOutcome, String> {
@@ -250,7 +256,7 @@ fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, programs_list, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }
