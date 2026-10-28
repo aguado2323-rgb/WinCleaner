@@ -7,7 +7,7 @@ use wincleaner_core::{
     builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
     list_programs, list_restore_points, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
-    scan_dir, scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
 };
 
