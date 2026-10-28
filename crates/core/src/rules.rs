@@ -52,6 +52,24 @@ mod tests {
     }
 
     #[test]
+    fn builtin_rules_are_well_formed() {
+        let rules = builtin_rules();
+        let mut ids: Vec<_> = rules.iter().map(|r| r.id.as_str()).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), rules.len(), "ids duplicados");
+        for r in &rules {
+            assert!(!r.paths.is_empty(), "{} sin rutas", r.id);
+            for p in &r.paths {
+                // Toda ruta debe colgar de una variable de entorno: nada de rutas fijas ni raíces.
+                assert!(p.starts_with('%') && p.matches('%').count() == 2, "{}: {p}", r.id);
+                // Salvo %TEMP% (carpeta de temporales), no se limpia la raíz de una variable.
+                assert!(p == "%TEMP%" || p.contains('\\'), "{}: {p} apunta a la raíz de la variable", r.id);
+            }
+        }
+    }
+
+    #[test]
     fn expand_known_and_unknown_vars() {
         std::env::set_var("WC_TEST_DIR", "base");
         assert_eq!(expand_env("%WC_TEST_DIR%/x").unwrap(), PathBuf::from("base/x"));

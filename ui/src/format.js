@@ -10,4 +10,10 @@ export function fmtDate(batch) {
   return new Date(Number(batch) * 1000).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export const accents = { Sistema: 'var(--blue)', Navegadores: 'var(--yellow)' };
+export const accents = {
+  Sistema: 'var(--blue)',
+  Navegadores: 'var(--yellow)',
+  'Juegos y gráficos': 'var(--green)',
+  Aplicaciones: 'var(--violet)',
+  Desarrollo: 'var(--ash)',
+};
