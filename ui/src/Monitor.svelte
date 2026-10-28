@@ -4,7 +4,7 @@
   import { fmt } from './format.js';
   import { t } from './i18n.svelte.js';
 
-  const MIN_WIDTH = 1480; // por debajo no cabe junto a la pantalla: el panel se oculta y no consulta nada
+  const MIN_WIDTH = 1500; // por debajo no cabe junto a la pantalla: el panel se oculta y no consulta nada
   const HISTORY = 40;
 
   let visible = $state(false);
@@ -44,22 +44,26 @@
   }
 
   onMount(() => {
-    const mq = matchMedia(`(min-width: ${MIN_WIDTH}px)`);
     let timer;
-    const apply = () => {
-      visible = mq.matches;
+    // Se decide con el ancho real de la ventana en cada cambio de tamaño: los eventos de media query
+    // no siempre llegan en WebView2 y el panel se quedaba oculto hasta cambiar de pantalla.
+    const sync = () => {
+      const want = window.innerWidth >= MIN_WIDTH;
+      if (want === visible && (timer || !want)) return;
+      visible = want;
       clearInterval(timer);
-      if (visible) {
+      timer = undefined;
+      if (want) {
         if (!specs) loadSpecs();
         sample();
         timer = setInterval(sample, 2000);
       }
     };
-    apply();
-    mq.addEventListener('change', apply);
+    sync();
+    window.addEventListener('resize', sync);
     return () => {
       clearInterval(timer);
-      mq.removeEventListener('change', apply);
+      window.removeEventListener('resize', sync);
     };
   });
 
@@ -173,9 +177,11 @@
 {/if}
 
 <style>
-  .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 290px; margin: 32px 40px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; gap: 22px; max-height: calc(100vh - 64px); overflow-y: auto; scrollbar-width: thin; }
-  section { display: grid; gap: 6px; }
-  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 330px; margin: 32px 32px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; max-height: calc(100vh - 64px); overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+  section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+  .row > :last-child { flex: none; }
+  .row > :first-child:not(:last-child) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .k { margin: 0; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
   b.num.small { font-size: 14px; letter-spacing: 0; }
   .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
@@ -193,7 +199,7 @@
   .spark { display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; height: 44px; border-bottom: 1px solid var(--ink); }
   .spark i { flex: 0 0 5px; background: var(--accent); opacity: 0.85; transition: height 0.4s; }
   .disk { display: grid; gap: 4px; margin-top: 8px; font-size: 12.5px; }
-  dl { display: grid; grid-template-columns: 62px 1fr; gap: 6px 10px; margin: 0; font-size: 12.5px; }
+  dl { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 6px 10px; margin: 0; font-size: 12.5px; }
   dt { color: var(--ink-3); }
   dd { margin: 0; word-break: break-word; }
   dd small { display: block; color: var(--ink-3); }
