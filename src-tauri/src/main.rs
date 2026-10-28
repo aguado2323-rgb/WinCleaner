@@ -4,8 +4,10 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, drives, list_batches, purge_batch, restore_batch, scan_dir,
-    scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode, Rule, ScanResult, StartupItem,
+    builtin_rules, clean_rule, create_restore_point, drives, is_admin, list_batches,
+    list_restore_points, open_system_restore, purge_batch, relaunch_as_admin, restore_batch,
+    scan_dir, scan_rule, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
+    Reason, RestorePoint, Rule, ScanResult, StartupItem,
 };
 
 #[derive(Serialize)]
@@ -146,9 +148,44 @@ fn startup_set(id: String, enabled: bool) -> Result<(), String> {
     startup_set_enabled(&id, enabled)
 }
 
+#[derive(Serialize)]
+struct RestoreState {
+    admin: bool,
+    points: Vec<RestorePoint>,
+}
+
+/// PowerShell tarda un poco: se ejecuta en un hilo aparte para no congelar la ventana.
+#[tauri::command]
+async fn restore_state() -> Result<RestoreState, String> {
+    tauri::async_runtime::spawn_blocking(|| RestoreState { admin: is_admin(), points: list_restore_points() })
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn restore_create(reason: String) -> Result<(), String> {
+    let reason = Reason::parse(&reason).ok_or("motivo no válido")?;
+    tauri::async_runtime::spawn_blocking(move || create_restore_point(reason))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn restore_open() -> Result<(), String> {
+    open_system_restore()
+}
+
+/// Lanza otra instancia con permisos de administrador y cierra esta.
+#[tauri::command]
+fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
+    relaunch_as_admin()?;
+    app.exit(0);
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

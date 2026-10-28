@@ -162,9 +162,12 @@ mod imp {
             .args(["-NoProfile", "-NonInteractive", "-Command", "Start-Process -FilePath $env:WC_EXE -Verb RunAs"])
             .env("WC_EXE", exe)
             .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map(|_| ())
+            .status()
             .map_err(|e| e.to_string())
+            .and_then(|st| {
+                // Si la persona cancela el aviso de Windows, Start-Process falla y esta ventana se queda abierta.
+                if st.success() { Ok(()) } else { Err("Se canceló la elevación de permisos.".to_string()) }
+            })
     }
 }
 

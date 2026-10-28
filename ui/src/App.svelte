@@ -4,12 +4,14 @@
   import Quarantine from './Quarantine.svelte';
   import Space from './Space.svelte';
   import Startup from './Startup.svelte';
+  import Restore from './Restore.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
     ['quarantine', 'Cuarentena'],
     ['space', 'Espacio'],
     ['startup', 'Arranque'],
+    ['restore', 'Restauración'],
   ];
 
   let view = $state('clean');
@@ -65,6 +67,8 @@
           <Space {notify} />
         {:else if view === 'startup'}
           <Startup {notify} />
+        {:else if view === 'restore'}
+          <Restore {notify} />
         {:else}
           <Quarantine {q} {notify} {refreshQuarantine} />
         {/if}
