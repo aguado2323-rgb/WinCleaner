@@ -123,6 +123,10 @@ export const H = {
     risk: 'final',
     text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
   },
+  updatesInfo: {
+    risk: 'care',
+    text: 'Usa winget, el gestor de paquetes oficial de Windows, para buscar versiones nuevas de tus programas. WinCleaner no descarga nada por su cuenta: es winget quien baja e instala, con el instalador del propio fabricante. Una actualización puede cambiar el programa o pedir permisos de administrador; no se puede deshacer desde aquí, así que revisa la lista y cierra antes los programas que vayas a actualizar.',
+  },
   powerInfo: {
     risk: 'reversible',
     text: 'El plan de energía decide cuánto rinde el equipo y cuánta batería gasta. Cambiar de plan es inmediato y siempre puedes volver al anterior desde esta misma lista. «Equilibrado» es lo normal; los planes de más rendimiento gastan más batería y calientan más.',

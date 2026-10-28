@@ -12,6 +12,7 @@ mod services;
 mod startup;
 mod tweaks;
 mod uninstall;
+mod updates;
 mod rules;
 mod schedule;
 
@@ -42,4 +43,5 @@ pub use schedule::{
     last_run as schedule_last_run, load as schedule_load, run_now as schedule_run_now, run_scheduled, schedule_save, task_exists as schedule_task_exists,
     AutoMode, Freq, LastRun, Schedule,
 };
+pub use updates::{update_apply, updates_list, Update};
 pub use power::{power_add_ultimate, power_plans, power_set, Plan};
