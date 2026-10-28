@@ -24,7 +24,11 @@
     return d ? `${d} ${t('d')} ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
   }
 
+  let busy = false;
   async function sample() {
+    // Si una muestra tarda más que el intervalo, no se encolan otras detrás.
+    if (busy) return;
+    busy = true;
     try {
       live = await invoke('monitor_sample');
       history = [...history, live.cpu].slice(-HISTORY);
@@ -32,6 +36,8 @@
       failed = false;
     } catch {
       failed = true;
+    } finally {
+      busy = false;
     }
   }
 
@@ -47,13 +53,15 @@
     let timer;
     // Se decide con el ancho real de la ventana en cada cambio de tamaño: los eventos de media query
     // no siempre llegan en WebView2 y el panel se quedaba oculto hasta cambiar de pantalla.
+    // Con la ventana minimizada u oculta no se consulta nada: nadie mira el panel y cada muestra cuesta CPU.
     const sync = () => {
       const want = window.innerWidth >= MIN_WIDTH;
-      if (want === visible && (timer || !want)) return;
+      const poll = want && !document.hidden;
       visible = want;
+      if (poll === Boolean(timer)) return;
       clearInterval(timer);
       timer = undefined;
-      if (want) {
+      if (poll) {
         if (!specs) loadSpecs();
         sample();
         timer = setInterval(sample, 2000);
@@ -61,9 +69,11 @@
     };
     sync();
     window.addEventListener('resize', sync);
+    document.addEventListener('visibilitychange', sync);
     return () => {
       clearInterval(timer);
       window.removeEventListener('resize', sync);
+      document.removeEventListener('visibilitychange', sync);
     };
   });
 

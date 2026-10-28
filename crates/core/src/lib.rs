@@ -1,6 +1,7 @@
 //! Núcleo de WinCleaner: reglas declarativas, escaneo y limpieza segura.
 //! Sin dependencias de UI para poder probarlo en cualquier plataforma.
 
+mod background;
 mod clean;
 mod debloat;
 mod disk;
@@ -23,6 +24,7 @@ pub use clean::{
     clean_rule, list_batches, quarantine_items, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
     ScanResult,
 };
+pub use background::low_priority;
 pub use rules::{builtin_rules, expand_env, Rule};
 pub use disk::{drives, scan_dir, Child, DirReport, FileEntry};
 pub use startup::{list as startup_list, set_enabled as startup_set_enabled, StartupItem};

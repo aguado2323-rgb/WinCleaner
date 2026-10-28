@@ -62,11 +62,13 @@ impl Walk {
         };
         let (mut bytes, mut files) = (0, 0);
         for entry in read.flatten() {
-            let path = entry.path();
-            let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+            // Los datos vienen del propio listado de la carpeta: no se abre cada archivo (en Windows eso
+            // cuesta varias llamadas al sistema por archivo y despierta al antivirus). No sigue enlaces.
+            let Ok(meta) = entry.metadata() else { continue };
             if meta.file_type().is_symlink() {
                 continue;
             }
+            let path = entry.path();
             if meta.is_dir() {
                 let (b, f) = self.dir(&path);
                 bytes += b;
@@ -91,7 +93,7 @@ pub fn scan_dir(path: &Path, top: usize) -> DirReport {
         Ok(read) => {
             for entry in read.flatten() {
                 let p = entry.path();
-                let Ok(meta) = fs::symlink_metadata(&p) else { continue };
+                let Ok(meta) = entry.metadata() else { continue };
                 if meta.file_type().is_symlink() {
                     continue;
                 }

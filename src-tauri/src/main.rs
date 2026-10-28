@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
-    builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
+    builtin_rules, clean_rule, low_priority, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
     list_programs, program_icons, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
@@ -43,9 +43,12 @@ fn list_rules() -> Vec<Rule> {
     builtin_rules()
 }
 
+/// Solo lectura. En un hilo aparte (la ventana no se congela) y con prioridad baja de Windows.
 #[tauri::command]
-fn scan(ids: Vec<String>) -> Vec<ScanResult> {
-    builtin_rules().iter().filter(|r| ids.contains(&r.id)).map(scan_rule).collect()
+async fn scan(ids: Vec<String>) -> Result<Vec<ScanResult>, String> {
+    tauri::async_runtime::spawn_blocking(move || low_priority(|| builtin_rules().iter().filter(|r| ids.contains(&r.id)).map(scan_rule).collect::<Vec<_>>()))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -151,7 +154,7 @@ async fn analyze(path: String) -> Result<DirReport, String> {
     if !p.is_dir() {
         return Err("la ruta no es una carpeta".into());
     }
-    tauri::async_runtime::spawn_blocking(move || scan_dir(&p, 25))
+    tauri::async_runtime::spawn_blocking(move || low_priority(|| scan_dir(&p, 25)))
         .await
         .map_err(|e| e.to_string())
 }
@@ -176,7 +179,7 @@ fn dup_folders() -> Vec<Folder> {
 /// Archivos idénticos (por contenido) dentro de las carpetas elegidas por id.
 #[tauri::command]
 async fn dup_scan(folders: Vec<String>, min_mb: u64) -> Result<DupReport, String> {
-    tauri::async_runtime::spawn_blocking(move || find_duplicates(&folders, min_mb.saturating_mul(1_000_000)))
+    tauri::async_runtime::spawn_blocking(move || low_priority(|| find_duplicates(&folders, min_mb.saturating_mul(1_000_000))))
         .await
         .map_err(|e| e.to_string())
 }
@@ -193,7 +196,7 @@ async fn dup_quarantine(selection: Vec<DupSelection>) -> Result<CleanReport, Str
 #[tauri::command]
 async fn old_scan(folders: Vec<String>, min_mb: u64, days: u64) -> Result<Vec<OldFile>, String> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
-    tauri::async_runtime::spawn_blocking(move || find_large_old(&folders, min_mb.saturating_mul(1_000_000), days, now))
+    tauri::async_runtime::spawn_blocking(move || low_priority(|| find_large_old(&folders, min_mb.saturating_mul(1_000_000), days, now)))
         .await
         .map_err(|e| e.to_string())
 }
@@ -470,7 +473,7 @@ async fn monitor_specs() -> Result<MonitorSpecs, String> {
 #[tauri::command]
 async fn monitor_sample(state: tauri::State<'_, MonitorState>) -> Result<MonitorLive, String> {
     let monitor = Arc::clone(&state);
-    tauri::async_runtime::spawn_blocking(move || monitor.lock().map(|mut m| m.get_or_insert_with(Monitor::new).sample()).map_err(|e| e.to_string()))
+    tauri::async_runtime::spawn_blocking(move || low_priority(|| monitor.lock().map(|mut m| m.get_or_insert_with(Monitor::new).sample()).map_err(|e| e.to_string())))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -478,7 +481,7 @@ async fn monitor_sample(state: tauri::State<'_, MonitorState>) -> Result<Monitor
 fn main() {
     // Lanzado por el Programador de tareas: sin ventana, hace la pasada y sale.
     if std::env::args().any(|a| a == "--auto") {
-        run_scheduled(&data_dir(), &quarantine_dir(), now_secs());
+        low_priority(|| run_scheduled(&data_dir(), &quarantine_dir(), now_secs()));
         return;
     }
     tauri::Builder::default()

@@ -80,8 +80,9 @@ fn walk(dir: &Path, root: &Path, rule_id: &str, ctx: &mut Ctx) {
     let Ok(read) = fs::read_dir(dir) else { return };
     for entry in read.flatten() {
         let path = entry.path();
-        // symlink_metadata: no seguimos enlaces simbólicos ni junctions.
-        let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+        // Los datos vienen del listado de la carpeta (como symlink_metadata, no sigue enlaces simbólicos
+        // ni junctions), así no se abre cada archivo solo para saber su tamaño.
+        let Ok(meta) = entry.metadata() else { continue };
         if meta.is_dir() {
             walk(&path, root, rule_id, ctx);
             if matches!(ctx.mode, Mode::Quarantine { .. }) {
@@ -373,7 +374,7 @@ fn purge_dir(dir: &Path) {
 fn count_files(dir: &Path) -> u64 {
     let mut n = 0;
     for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
-        match fs::symlink_metadata(entry.path()) {
+        match entry.metadata() {
             Ok(m) if m.is_dir() && !m.file_type().is_symlink() => n += count_files(&entry.path()),
             Ok(_) => n += 1,
             Err(_) => {}
@@ -402,7 +403,7 @@ fn first_left(dir: &Path) -> Option<PathBuf> {
 /// ¿Queda algo en el lote aparte del registro (manifest) de la limpieza?
 fn has_payload(dir: &Path) -> bool {
     for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
-        let Ok(m) = fs::symlink_metadata(entry.path()) else { continue };
+        let Ok(m) = entry.metadata() else { continue };
         if m.is_dir() {
             if has_payload(&entry.path()) {
                 return true;
