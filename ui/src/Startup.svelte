@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
 
   let { notify } = $props();
@@ -44,7 +46,7 @@
 
 <p class="label">Arranque</p>
 <h1 class="h1">Lo que arranca con Windows.</h1>
-<p class="lede">Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras.</p>
+<p class="lede">Desactivar es reversible: el programa sigue instalado y puedes volver a activarlo cuando quieras. <Help text={H.startupToggle.text} risk={H.startupToggle.risk} label="Qué hace Sí/No" /></p>
 
 <section class="summary">
   <span class="big num">{active}<small>/{items.length}</small></span>
@@ -68,6 +70,7 @@
           <span class="top">
             <b>{item.name}</b>
             <span class="tag label">{item.source}</span>
+            <Help text={item.needs_admin ? H.startupMachine.text : item.source.toLowerCase().includes('carpeta') ? H.startupFolder.text : H.startupUser.text} risk={item.needs_admin ? 'care' : 'reversible'} label="Qué es {item.name}" />
           </span>
           <small title={item.command}>{item.command || 'Sin comando'}</small>
         </div>

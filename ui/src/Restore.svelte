@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
 
   let { notify } = $props();
@@ -45,7 +47,8 @@
 {#if !loading && !admin}
   <section class="admin">
     <p><b>Modo administrador.</b> Windows exige permisos de administrador para crear puntos de restauración.</p>
-    <button class="btn" onclick={elevate}>Reiniciar como administrador</button>
+    <span class="acts"><button class="btn" onclick={elevate}>Reiniciar como administrador</button>
+    <Help text={H.restoreAdmin.text} risk={H.restoreAdmin.risk} label="Qué hace Reiniciar como administrador" /></span>
   </section>
 {/if}
 
@@ -53,7 +56,9 @@
   <button class="btn primary" disabled={busy || loading || !admin} onclick={create}>
     {busy ? 'Creando…' : 'Crear punto ahora'}
   </button>
+  <Help text={H.restoreCreate.text} risk={H.restoreCreate.risk} label="Qué hace Crear punto" />
   <button class="link" onclick={openRestore}>Abrir Restaurar sistema ↗</button>
+  <Help text={H.restoreOpen.text} risk={H.restoreOpen.risk} label="Qué hace Abrir Restaurar sistema" />
 </section>
 <p class="note">Windows solo permite un punto nuevo cada 24 horas. Para volver a uno anterior se usa el asistente oficial de Windows, no WinCleaner.</p>
 
@@ -84,6 +89,7 @@
   .admin p { margin: 0; color: var(--ink-2); line-height: 1.5; }
   .admin b { color: var(--ink); }
   .act { display: flex; align-items: center; gap: 26px; margin: 30px 0 14px; }
+  .acts { display: flex; align-items: center; gap: 10px; flex: none; }
   .note { margin: 0 0 8px; color: var(--ink-3); font-size: 12.5px; max-width: 520px; line-height: 1.5; }
   .head { display: flex; align-items: baseline; justify-content: space-between; margin: 34px 0 4px; padding-bottom: 8px; border-bottom: 1px solid var(--ink); }
   .head h2 { margin: 0; color: var(--ink); }

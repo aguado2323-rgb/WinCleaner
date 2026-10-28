@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
 
   let { notify } = $props();
@@ -69,7 +71,9 @@
   <button class="btn primary" disabled={!chosen.length || loading} onclick={() => (confirming = true)}>
     Quitar {chosen.length || ''}
   </button>
+  <Help text={H.debloatRemove.text} risk={H.debloatRemove.risk} label="Qué hace Quitar" />
   <button class="link" onclick={setSafe}>Marcar las seguras</button>
+  <Help text={H.debloatSafe.text} risk={H.debloatSafe.risk} label="Qué hace Marcar las seguras" />
   <button class="link" onclick={() => (selected = {})}>Nada</button>
 </section>
 
@@ -91,6 +95,7 @@
               <small>{i.what}</small>
             </span>
             <span class="tag label" class:warn={i.risk === 'cautious'}>{i.risk === 'safe' ? 'Segura' : 'Con cuidado'}</span>
+            <Help text={i.what + ' ' + i.impact + ' ' + (i.risk === 'safe' ? 'Casi nadie la echa de menos.' : 'Hay quien la usa: léelo antes de quitarla.') + ' Se reinstala desde Microsoft Store.'} risk={i.risk === 'safe' ? 'reversible' : 'care'} label="Qué es {i.name}" />
           </label>
           <button class="more link" aria-expanded={!!open[i.id]} onclick={() => (open[i.id] = !open[i.id])}>
             {open[i.id] ? 'Ocultar efecto' : '¿Qué pasa si la quito?'}
@@ -116,6 +121,7 @@
         <input type="checkbox" bind:checked={makePoint} disabled={phase === 'working'} />
         <span class="box" aria-hidden="true"></span>
         <span>Crear un punto de restauración antes (recomendado)</span>
+        <Help text={H.debloatPoint.text} risk={H.debloatPoint.risk} label="Qué es un punto de restauración" />
       </label>
       {#if pointError}
         <p class="err">{pointError}</p>

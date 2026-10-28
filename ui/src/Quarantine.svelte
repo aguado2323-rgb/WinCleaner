@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
   import { fmt, fmtDate } from './format.js';
 
@@ -37,12 +39,16 @@
   <span class="label">Carpeta</span>
   <code>{q.path || '—'}</code>
   <button class="link" onclick={openFolder}>Abrir ↗</button>
+  <Help text={H.quarantineOpen.text} risk={H.quarantineOpen.risk} label="Qué hace Abrir" />
 </section>
 
 {#if q.batches.length}
   <div class="head">
     <span class="num">{q.batches.length} {q.batches.length === 1 ? 'limpieza' : 'limpiezas'} · {fmt(totalBytes)}</span>
-    <button class="btn danger" onclick={() => (confirm = 'all')}>Vaciar todo</button>
+    <span class="acts">
+      <Help text={H.quarantineAll.text} risk={H.quarantineAll.risk} label="Qué hace Vaciar todo" />
+      <button class="btn danger" onclick={() => (confirm = 'all')}>Vaciar todo</button>
+    </span>
   </div>
   <ul>
     {#each q.batches as b, i (b.batch)}
@@ -51,7 +57,9 @@
         <span class="meta num">{b.files} archivos</span>
         <span class="sz num">{fmt(b.bytes)}</span>
         <button class="link" onclick={() => restore(b.batch)}>Restaurar</button>
+        <Help text={H.quarantineRestore.text} risk={H.quarantineRestore.risk} label="Qué hace Restaurar" />
         <button class="link x" onclick={() => (confirm = b.batch)}>Borrar</button>
+        <Help text={H.quarantineDelete.text} risk={H.quarantineDelete.risk} label="Qué hace Borrar" />
       </li>
     {/each}
   </ul>
@@ -88,6 +96,7 @@
   .meta { color: var(--ink-3); font-size: 12.5px; }
   .sz { width: 76px; text-align: right; font-size: 13px; }
   .x:hover { color: var(--accent); border-color: var(--accent); }
+  .acts { display: flex; align-items: center; gap: 10px; }
   .empty { padding: 70px 0; color: var(--ink-2); }
   .empty .big { margin: 0 0 6px; font-size: 96px; font-weight: 500; letter-spacing: -0.06em; color: var(--ink-3); line-height: 1; }
 </style>

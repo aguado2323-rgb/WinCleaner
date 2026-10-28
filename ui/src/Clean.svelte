@@ -1,4 +1,6 @@
 <script>
+  import Help from './Help.svelte';
+  import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
   import { Tween } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
@@ -88,6 +90,7 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
 
 <p class="label">Limpieza</p>
+<p class="lede">Marca lo que quieras limpiar. Pasa el ratón por el <b>?</b> de cada línea para ver qué es y si tiene algún riesgo. Nada se borra: todo va a la cuarentena.</p>
 
 <section class="hero">
   <div class="figure" class:busy={phase === 'scanning' || phase === 'cleaning'}>
@@ -119,7 +122,9 @@
       <button class="btn primary" disabled={phase !== 'ready' || !total} onclick={() => (confirming = true)}>
         {total ? `Limpiar ${fmt(total)}` : 'Nada que limpiar'}
       </button>
+      <Help text={H.cleanButton.text} risk={H.cleanButton.risk} label="Qué hace Limpiar" />
       <button class="link" disabled={phase !== 'ready'} onclick={scan}>Analizar de nuevo</button>
+      <Help text={H.cleanRescan.text} risk={H.cleanRescan.risk} label="Qué hace Analizar" />
     {/if}
   </div>
 </section>
@@ -143,6 +148,7 @@
             <b>{r.name}</b>
             <small>{r.description}</small>
           </span>
+          <Help text={r.help} risk={r.safe ? 'reversible' : 'care'} label="Qué hace {r.name}" />
           <span class="mini" aria-hidden="true"><i style="width:{(bytes / maxBytes) * 100}%"></i></span>
           <span class="sz num">{phase === 'scanning' ? '—' : fmt(bytes)}</span>
         </label>
