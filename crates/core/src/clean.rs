@@ -292,7 +292,8 @@ pub fn purge_batch(quarantine_dir: &Path, batch: &str) -> std::io::Result<()> {
         std::io::ErrorKind::PermissionDenied,
         format!(
             "{left} archivos no se han podido borrar porque pertenecen al sistema o a otro usuario; \
-             abre WinCleaner como administrador y vuelve a intentarlo"
+             abre WinCleaner como administrador y vuelve a intentarlo (por ejemplo: {})",
+            first_left(&dir).map(|p| p.display().to_string()).unwrap_or_default()
         ),
     ))
 }
@@ -307,38 +308,64 @@ fn clear_readonly(path: &Path, meta: &fs::Metadata) {
     }
 }
 
-/// Borra una carpeta entera, quitando antes el atributo de solo lectura a lo que lo tenga
-/// (también a las carpetas, que en Windows impide borrarlas).
-fn remove_tree(dir: &Path) -> std::io::Result<()> {
-    if let Ok(meta) = fs::symlink_metadata(dir) {
-        clear_readonly(dir, &meta);
+/// En Windows, las rutas largas o con nombres raros (punto o espacio final, «nul»...) solo se
+/// pueden tocar con el prefijo `\\?\`; sin él, borrar falla incluso como administrador.
+fn long_path(p: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let s = p.to_string_lossy().replace('/', r"\");
+        if p.is_absolute() && !s.starts_with(r"\\?\") {
+            if let Some(unc) = s.strip_prefix(r"\\") {
+                return PathBuf::from(format!(r"\\?\UNC\{unc}"));
+            }
+            return PathBuf::from(format!(r"\\?\{s}"));
+        }
     }
-    if let Ok(read) = fs::read_dir(dir) {
+    p.to_path_buf()
+}
+
+/// Borra un elemento suelto: archivo, enlace simbólico de archivo o de carpeta, o unión (junction).
+/// Un enlace a carpeta en Windows no se borra con `remove_file`, hace falta `remove_dir`.
+fn remove_entry(path: &Path, meta: &fs::Metadata) -> std::io::Result<()> {
+    let p = long_path(path);
+    clear_readonly(&p, meta);
+    match fs::remove_file(&p) {
+        Ok(()) => Ok(()),
+        Err(e) => fs::remove_dir(&p).map_err(|_| e),
+    }
+}
+
+/// Borra una carpeta entera, quitando antes el atributo de solo lectura a lo que lo tenga
+/// (también a las carpetas, que en Windows impide borrarlas). No entra en enlaces.
+fn remove_tree(dir: &Path) -> std::io::Result<()> {
+    let dir = long_path(dir);
+    if let Ok(meta) = fs::symlink_metadata(&dir) {
+        clear_readonly(&dir, &meta);
+    }
+    if let Ok(read) = fs::read_dir(&dir) {
         for entry in read.flatten() {
             let path = entry.path();
             let Ok(meta) = fs::symlink_metadata(&path) else { continue };
-            if meta.is_dir() {
+            if meta.is_dir() && !meta.file_type().is_symlink() {
                 let _ = remove_tree(&path);
             } else {
-                clear_readonly(&path, &meta);
-                let _ = fs::remove_file(&path);
+                let _ = remove_entry(&path, &meta);
             }
         }
     }
-    fs::remove_dir(dir)
+    fs::remove_dir(&dir)
 }
 
 /// Borra los archivos que puede, sin seguir enlaces simbólicos.
 fn purge_dir(dir: &Path) {
-    let Ok(read) = fs::read_dir(dir) else { return };
+    let Ok(read) = fs::read_dir(long_path(dir)) else { return };
     for entry in read.flatten() {
         let path = entry.path();
         let Ok(meta) = fs::symlink_metadata(&path) else { continue };
-        if meta.is_dir() {
+        if meta.is_dir() && !meta.file_type().is_symlink() {
             purge_dir(&path);
-        } else if fs::remove_file(&path).is_err() {
-            clear_readonly(&path, &meta);
-            let _ = fs::remove_file(&path);
+        } else {
+            let _ = remove_entry(&path, &meta);
         }
     }
 }
@@ -347,12 +374,29 @@ fn count_files(dir: &Path) -> u64 {
     let mut n = 0;
     for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
         match fs::symlink_metadata(entry.path()) {
-            Ok(m) if m.is_dir() => n += count_files(&entry.path()),
+            Ok(m) if m.is_dir() && !m.file_type().is_symlink() => n += count_files(&entry.path()),
             Ok(_) => n += 1,
             Err(_) => {}
         }
     }
     n
+}
+
+/// Primer elemento (no carpeta) que queda dentro de `dir`, para explicar qué no se pudo borrar.
+fn first_left(dir: &Path) -> Option<PathBuf> {
+    for entry in fs::read_dir(long_path(dir)).into_iter().flatten().flatten() {
+        let path = entry.path();
+        match fs::symlink_metadata(&path) {
+            Ok(m) if m.is_dir() && !m.file_type().is_symlink() => {
+                if let Some(p) = first_left(&path) {
+                    return Some(p);
+                }
+            }
+            Ok(_) => return Some(path),
+            Err(_) => {}
+        }
+    }
+    None
 }
 
 /// ¿Queda algo en el lote aparte del registro (manifest) de la limpieza?
@@ -491,6 +535,19 @@ mod tests {
         fs::write(q.path().join("9/manifest.json"), b"[]").unwrap();
         assert!(list_batches(q.path()).is_empty());
         assert!(!q.path().join("9").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn purge_removes_symlinks_without_touching_their_target() {
+        let outside = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join("keep.txt"), b"x").unwrap();
+        let q = tempfile::tempdir().unwrap();
+        fs::create_dir_all(q.path().join("5/rule")).unwrap();
+        std::os::unix::fs::symlink(outside.path(), q.path().join("5/rule/link")).unwrap();
+        purge_batch(q.path(), "5").unwrap();
+        assert!(!q.path().join("5").exists());
+        assert!(outside.path().join("keep.txt").exists());
     }
 
     #[test]
