@@ -5,6 +5,7 @@ mod clean;
 mod debloat;
 mod disk;
 mod duplicates;
+mod power;
 mod protect;
 mod recycle;
 mod restore;
@@ -43,3 +44,4 @@ pub use schedule::{
     AutoMode, Freq, LastRun, Schedule,
 };
 pub use recycle::{recycle_empty, recycle_info, RecycleInfo};
+pub use power::{power_add_ultimate, power_plans, power_set, Plan};
