@@ -11,6 +11,7 @@
   let specs = $state(null);
   let live = $state(null);
   let history = $state([]);
+  let netHistory = $state([]);
   let failed = $state(false);
 
   const pct = (a, b) => (b ? Math.min(100, Math.round((a / b) * 100)) : 0);
@@ -27,6 +28,7 @@
     try {
       live = await invoke('monitor_sample');
       history = [...history, live.cpu].slice(-HISTORY);
+      netHistory = [...netHistory, live.net_down].slice(-HISTORY);
       failed = false;
     } catch {
       failed = true;
@@ -61,6 +63,9 @@
     };
   });
 
+  let netMax = $derived(Math.max(1, ...netHistory));
+  const rate = (b) => fmt(b) + '/s';
+  const healthy = (h) => /^(healthy|ok)$/i.test(h);
   let ramPct = $derived(live ? pct(live.ram_used, live.ram_total) : 0);
   let cpuPct = $derived(live ? Math.round(live.cpu) : 0);
 </script>
@@ -99,10 +104,45 @@
       </section>
 
       <section>
+        <p class="k">{t('Red')}</p>
+        <div class="row"><span class="sub">↓ {t('Bajada')}</span><b class="num small">{rate(live.net_down)}</b></div>
+        <div class="row"><span class="sub">↑ {t('Subida')}</span><b class="num small">{rate(live.net_up)}</b></div>
+        <div class="spark thin" role="img" aria-label={t('Velocidad de bajada en los últimos segundos')}>
+          {#each netHistory as h, i (i)}<i style="height:{Math.max(3, (h / netMax) * 100)}%"></i>{/each}
+        </div>
+      </section>
+
+      {#if live.gpu.length}
+        <section>
+          <p class="k">GPU</p>
+          {#each live.gpu as g (g.name)}
+            {@const gp = pct(g.mem_used, g.mem_total)}
+            <div class="row"><span class="sub">{g.name}</span><b class="num small {tone(Math.round(g.util))}">{Math.round(g.util)}%</b></div>
+            <div class="bar"><i class={tone(Math.round(g.util))} style="width:{Math.round(g.util)}%"></i></div>
+            {#if g.mem_total}<p class="sub num">{t('VRAM {a} / {b}', { a: fmt(g.mem_used), b: fmt(g.mem_total) })} ({gp}%)</p>{/if}
+          {/each}
+        </section>
+      {/if}
+
+      <section>
+        <p class="k">{t('Programas que más gastan')}</p>
+        {#if live.top_cpu.length}
+          <p class="sub">CPU</p>
+          {#each live.top_cpu as h (h.name)}
+            <div class="row"><span class="nm" title={h.name}>{h.name}</span><span class="num sub">{h.cpu.toFixed(h.cpu < 10 ? 1 : 0)}%</span></div>
+          {/each}
+        {/if}
+        <p class="sub">RAM</p>
+        {#each live.top_mem as h (h.name)}
+          <div class="row"><span class="nm" title={h.name}>{h.name}</span><span class="num sub">{fmt(h.mem)}</span></div>
+        {/each}
+      </section>
+
+      <section>
         <p class="k">{t('Temperaturas')}</p>
         {#if live.temps.length}
           {#each live.temps.slice(0, 6) as tp (tp.label)}
-            <div class="row"><span class="sub">{tp.label}</span><b class="num {tp.celsius >= 85 ? 'hot' : tp.celsius >= 70 ? 'warm' : ''}">{Math.round(tp.celsius)} °C</b></div>
+            <div class="row"><span class="sub">{tp.label}</span><b class="num small {tp.celsius >= 85 ? 'hot' : tp.celsius >= 70 ? 'warm' : ''}">{Math.round(tp.celsius)} °C</b></div>
           {/each}
         {:else}
           <p class="sub">{t('Este equipo no permite leer temperaturas desde Windows.')}</p>
@@ -118,6 +158,10 @@
             {#if specs.cpu}<dt>CPU</dt><dd>{specs.cpu}<small>{t('{p} núcleos · {l} hilos', { p: specs.physical_cores, l: specs.logical_cores })}</small></dd>{/if}
             <dt>RAM</dt><dd>{fmt(specs.ram_total)}</dd>
             {#each specs.gpus as g, i (g)}<dt>{i ? '' : 'GPU'}</dt><dd>{g}</dd>{/each}
+            {#each specs.drives as d (d.name)}
+              <dt>{t('Disco')}</dt>
+              <dd>{d.name}<small>{d.media}{d.size ? ' · ' + fmt(d.size) : ''} · <span class:bad={!healthy(d.health)}>{healthy(d.health) ? t('Salud: correcta') : t('Salud') + ': ' + d.health}</span></small></dd>
+            {/each}
             <dt>{t('Encendido')}</dt><dd>{uptime(live.uptime)}</dd>
           </dl>
         </section>
@@ -129,10 +173,14 @@
 {/if}
 
 <style>
-  .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 290px; margin: 32px 40px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; gap: 22px; }
+  .mon { position: sticky; top: 32px; align-self: flex-start; flex: none; width: 290px; margin: 32px 40px 0 0; padding-left: 28px; border-left: 1px solid var(--rule); display: grid; gap: 22px; max-height: calc(100vh - 64px); overflow-y: auto; scrollbar-width: thin; }
   section { display: grid; gap: 6px; }
   .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .k { margin: 0; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  b.num.small { font-size: 14px; letter-spacing: 0; }
+  .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+  .bad { color: var(--danger, #c4281c); font-weight: 600; }
+  .spark.thin { height: 28px; }
   b.num { font-size: 22px; font-weight: 500; letter-spacing: -0.03em; }
   .sub { margin: 0; font-size: 12px; color: var(--ink-3); }
   .note { margin: 0; font-size: 12.5px; color: var(--ink-2); }

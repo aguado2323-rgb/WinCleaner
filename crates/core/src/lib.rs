@@ -49,5 +49,5 @@ pub use schedule::{
 pub use updates::{update_apply, updates_list, Update};
 pub use power::{power_add_ultimate, power_plans, power_set, Plan};
 pub use recycle::{recycle_empty, recycle_info, RecycleInfo};
-pub use sysmon::{DiskUse, Live as MonitorLive, Monitor, Specs as MonitorSpecs, Temp};
+pub use sysmon::{DiskUse, GpuLive, Hog, Live as MonitorLive, Monitor, PhysDisk, Specs as MonitorSpecs, Temp};
 pub use history::{record as history_record, report as history_report, Event as HistoryEvent, Kind as HistoryKind, Report as UsageReport};

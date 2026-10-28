@@ -1,9 +1,21 @@
-//! Monitor del equipo: CPU, RAM, discos y temperaturas en vivo, más las especificaciones.
-//! Solo lectura; no toca nada del sistema.
+//! Monitor del equipo: CPU, RAM, discos, red, procesos, GPU y temperaturas en vivo, más las
+//! especificaciones. Solo lectura; no toca nada del sistema.
 
 use serde::Serialize;
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use sysinfo::{Components, Disks, System};
+use sysinfo::{Components, Disks, Networks, ProcessesToUpdate, System};
+
+/// Cuántos programas se listan en cada ranking.
+const TOP: usize = 4;
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PhysDisk {
+    pub name: String,
+    pub media: String,
+    pub health: String,
+    pub size: u64,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Specs {
@@ -14,6 +26,7 @@ pub struct Specs {
     pub logical_cores: usize,
     pub ram_total: u64,
     pub gpus: Vec<String>,
+    pub drives: Vec<PhysDisk>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -30,6 +43,23 @@ pub struct Temp {
     pub celsius: f32,
 }
 
+/// Un programa (varios procesos con el mismo nombre se suman).
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct Hog {
+    pub name: String,
+    pub cpu: f32,
+    pub mem: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct GpuLive {
+    pub name: String,
+    pub util: f32,
+    pub mem_used: u64,
+    pub mem_total: u64,
+    pub temp: Option<f32>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Live {
     pub cpu: f32,
@@ -38,14 +68,25 @@ pub struct Live {
     pub disks: Vec<DiskUse>,
     pub temps: Vec<Temp>,
     pub uptime: u64,
+    /// Bytes por segundo, sumando todas las conexiones reales.
+    pub net_down: u64,
+    pub net_up: u64,
+    pub top_cpu: Vec<Hog>,
+    pub top_mem: Vec<Hog>,
+    pub gpu: Vec<GpuLive>,
 }
 
-/// Guarda el estado entre muestras: la CPU se mide entre dos lecturas seguidas.
+/// Guarda el estado entre muestras: la CPU y la red se miden entre dos lecturas seguidas.
 pub struct Monitor {
     sys: System,
-    // Lecturas lentas (PowerShell, nvidia-smi): se repiten cada pocos segundos, no en cada muestra.
-    extra: Vec<Temp>,
-    extra_at: Option<Instant>,
+    nets: Networks,
+    last: Instant,
+    // Lecturas lentas (PowerShell): se repiten cada pocos segundos, no en cada muestra.
+    zones: Vec<Temp>,
+    zones_at: Option<Instant>,
+    // nvidia-smi es rápido, pero si no existe no se insiste más de una vez por minuto.
+    gpu: Vec<GpuLive>,
+    gpu_at: Option<Instant>,
 }
 
 impl Default for Monitor {
@@ -59,7 +100,8 @@ impl Monitor {
         let mut sys = System::new();
         sys.refresh_cpu_usage();
         sys.refresh_memory();
-        Monitor { sys, extra: Vec::new(), extra_at: None }
+        sys.refresh_processes(ProcessesToUpdate::All, true);
+        Monitor { sys, nets: Networks::new_with_refreshed_list(), last: Instant::now(), zones: Vec::new(), zones_at: None, gpu: Vec::new(), gpu_at: None }
     }
 
     pub fn specs(&mut self) -> Specs {
@@ -73,41 +115,105 @@ impl Monitor {
             logical_cores: self.sys.cpus().len(),
             ram_total: self.sys.total_memory(),
             gpus: imp::gpus(),
+            drives: imp::drives(),
         }
     }
 
     pub fn sample(&mut self) -> Live {
+        let secs = self.last.elapsed().as_secs_f64().max(0.2);
+        self.last = Instant::now();
         self.sys.refresh_cpu_usage();
         self.sys.refresh_memory();
+        self.sys.refresh_processes(ProcessesToUpdate::All, true);
+        self.nets.refresh(true);
+        let (down, up) = net_totals(&self.nets);
+        let cores = self.sys.cpus().len().max(1) as f32;
+        let (top_cpu, top_mem) = rankings(&self.sys, cores);
         let disks = Disks::new_with_refreshed_list();
+        let gpu = self.gpu();
+        let mut temps = self.temps();
+        for g in &gpu {
+            if let Some(t) = g.temp {
+                let label = format!("GPU {}", g.name);
+                if !temps.iter().any(|x| x.label == label) {
+                    temps.push(Temp { label, celsius: t });
+                }
+            }
+        }
         Live {
             cpu: self.sys.global_cpu_usage(),
             ram_used: self.sys.used_memory(),
             ram_total: self.sys.total_memory(),
             disks: disk_list(&disks),
-            temps: self.temps(),
+            temps,
             uptime: System::uptime(),
+            net_down: (down as f64 / secs) as u64,
+            net_up: (up as f64 / secs) as u64,
+            top_cpu,
+            top_mem,
+            gpu,
         }
     }
-}
 
-impl Monitor {
-    /// Sensores del propio sistema y, si no hay o además, las lecturas alternativas (zonas térmicas de
-    /// Windows y tarjeta NVIDIA). Cuando no se encontró nada se vuelve a intentar solo cada minuto.
+    /// Sensores del propio sistema y, si no hay o además, las zonas térmicas de Windows.
+    /// Cuando no se encontró nada se vuelve a intentar solo cada minuto.
     fn temps(&mut self) -> Vec<Temp> {
         let mut out = read_temps();
-        let wait = Duration::from_secs(if self.extra.is_empty() { 60 } else { 6 });
-        if self.extra_at.is_none_or(|t| t.elapsed() >= wait) {
-            self.extra = std::panic::catch_unwind(imp::extra_temps).unwrap_or_default();
-            self.extra_at = Some(Instant::now());
+        let wait = Duration::from_secs(if self.zones.is_empty() { 60 } else { 6 });
+        if self.zones_at.is_none_or(|t| t.elapsed() >= wait) {
+            self.zones = std::panic::catch_unwind(imp::zone_temps).unwrap_or_default();
+            self.zones_at = Some(Instant::now());
         }
-        for t in &self.extra {
+        for t in &self.zones {
             if !out.iter().any(|o| o.label == t.label) {
                 out.push(t.clone());
             }
         }
         out
     }
+
+    fn gpu(&mut self) -> Vec<GpuLive> {
+        let wait = Duration::from_secs(if self.gpu.is_empty() { 60 } else { 0 });
+        if self.gpu_at.is_none_or(|t| t.elapsed() >= wait) {
+            self.gpu = std::panic::catch_unwind(imp::nvidia).unwrap_or_default();
+            self.gpu_at = Some(Instant::now());
+        }
+        self.gpu.clone()
+    }
+}
+
+/// Bytes recibidos y enviados desde la lectura anterior, sin contar el bucle local.
+fn net_totals(nets: &Networks) -> (u64, u64) {
+    nets.iter()
+        .filter(|(name, _)| !name.to_lowercase().contains("loopback"))
+        .fold((0, 0), |(d, u), (_, n)| (d + n.received(), u + n.transmitted()))
+}
+
+/// Agrupa los procesos por nombre y devuelve los que más CPU y más RAM usan.
+fn rankings(sys: &System, cores: f32) -> (Vec<Hog>, Vec<Hog>) {
+    let mut by_name: HashMap<String, Hog> = HashMap::new();
+    for p in sys.processes().values() {
+        let name = p.name().to_string_lossy().into_owned();
+        if name.is_empty() || p.pid().as_u32() == 0 || name.eq_ignore_ascii_case("system idle process") {
+            continue;
+        }
+        let h = by_name.entry(name.clone()).or_insert(Hog { name, cpu: 0.0, mem: 0 });
+        // sysinfo da el uso respecto a un núcleo; se normaliza al total de la CPU.
+        h.cpu += p.cpu_usage() / cores;
+        h.mem += p.memory();
+    }
+    top_hogs(by_name.into_values().collect())
+}
+
+fn top_hogs(all: Vec<Hog>) -> (Vec<Hog>, Vec<Hog>) {
+    let mut cpu = all.clone();
+    cpu.retain(|h| h.cpu >= 0.5);
+    cpu.sort_by(|a, b| b.cpu.total_cmp(&a.cpu).then_with(|| a.name.cmp(&b.name)));
+    cpu.truncate(TOP);
+    let mut mem = all;
+    mem.sort_by(|a, b| b.mem.cmp(&a.mem).then_with(|| a.name.cmp(&b.name)));
+    mem.truncate(TOP);
+    (cpu, mem)
 }
 
 fn disk_list(disks: &Disks) -> Vec<DiskUse> {
@@ -141,7 +247,7 @@ fn temp_list(comps: &Components) -> Vec<Temp> {
 
 #[cfg(windows)]
 mod imp {
-    use super::Temp;
+    use super::{GpuLive, PhysDisk, Temp};
     use std::os::windows::process::CommandExt;
     use std::process::Command;
 
@@ -152,40 +258,49 @@ mod imp {
         out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
     }
 
-    /// Zonas térmicas ACPI del contador de rendimiento (no pide administrador) y temperatura de NVIDIA.
-    pub fn extra_temps() -> Vec<Temp> {
-        let mut out = Vec::new();
-        let zones = "Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation | ForEach-Object { $_.Name + '|' + $_.Temperature }";
-        if let Some(text) = run("powershell", &["-NoProfile", "-NonInteractive", "-Command", zones]) {
-            out.extend(super::parse_thermal_zones(&text));
-        }
-        if let Some(text) = run("nvidia-smi", &["--query-gpu=name,temperature.gpu", "--format=csv,noheader,nounits"]) {
-            out.extend(super::parse_nvidia(&text));
-        }
-        out
+    fn powershell(script: &str) -> Option<String> {
+        run("powershell", &["-NoProfile", "-NonInteractive", "-Command", script])
+    }
+
+    /// Zonas térmicas ACPI del contador de rendimiento (no pide administrador).
+    pub fn zone_temps() -> Vec<Temp> {
+        let script = "Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation | ForEach-Object { $_.Name + '|' + $_.Temperature }";
+        powershell(script).map(|t| super::parse_thermal_zones(&t)).unwrap_or_default()
+    }
+
+    pub fn nvidia() -> Vec<GpuLive> {
+        let args = ["--query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"];
+        run("nvidia-smi", &args).map(|t| super::parse_nvidia(&t)).unwrap_or_default()
     }
 
     pub fn gpus() -> Vec<String> {
-        let out = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", "Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name }"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
-        match out {
-            Ok(o) => super::parse_names(&String::from_utf8_lossy(&o.stdout)),
-            Err(_) => Vec::new(),
-        }
+        powershell("Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name }").map(|t| super::parse_names(&t)).unwrap_or_default()
+    }
+
+    /// Discos físicos con el estado de salud que informa Windows (no pide administrador).
+    pub fn drives() -> Vec<PhysDisk> {
+        let script = "Get-PhysicalDisk | ForEach-Object { $_.FriendlyName + '|' + $_.MediaType + '|' + $_.HealthStatus + '|' + $_.Size }";
+        powershell(script).map(|t| super::parse_drives(&t)).unwrap_or_default()
     }
 }
 
 #[cfg(not(windows))]
 mod imp {
-    use super::Temp;
+    use super::{GpuLive, PhysDisk, Temp};
+
+    pub fn zone_temps() -> Vec<Temp> {
+        Vec::new()
+    }
+
+    pub fn nvidia() -> Vec<GpuLive> {
+        Vec::new()
+    }
 
     pub fn gpus() -> Vec<String> {
         Vec::new()
     }
 
-    pub fn extra_temps() -> Vec<Temp> {
+    pub fn drives() -> Vec<PhysDisk> {
         Vec::new()
     }
 }
@@ -203,14 +318,38 @@ fn parse_thermal_zones(text: &str) -> Vec<Temp> {
         .collect()
 }
 
-/// `nombre, grados` por línea (salida CSV de `nvidia-smi`). `[N/A]` o texto raro se ignora.
+/// Salida CSV de `nvidia-smi`: `nombre, grados, uso %, MiB usados, MiB totales`. `[N/A]` pasa a vacío o a 0.
 #[cfg_attr(not(windows), allow(dead_code))]
-fn parse_nvidia(text: &str) -> Vec<Temp> {
+fn parse_nvidia(text: &str) -> Vec<GpuLive> {
     text.lines()
         .filter_map(|l| {
-            let (name, deg) = l.trim().rsplit_once(',')?;
-            let celsius = deg.trim().parse::<f32>().ok()?;
-            (celsius > 0.0 && celsius < 150.0).then(|| Temp { label: format!("GPU {}", name.trim().trim_start_matches("NVIDIA ").trim()), celsius })
+            let f: Vec<&str> = l.split(',').map(str::trim).collect();
+            if f.len() != 5 || f[0].is_empty() {
+                return None;
+            }
+            let temp = f[1].parse::<f32>().ok().filter(|t| *t > 0.0 && *t < 150.0);
+            let mib = |s: &str| s.parse::<u64>().unwrap_or(0) * 1024 * 1024;
+            Some(GpuLive {
+                name: f[0].trim_start_matches("NVIDIA ").trim().to_string(),
+                util: f[2].parse::<f32>().unwrap_or(0.0).clamp(0.0, 100.0),
+                mem_used: mib(f[3]),
+                mem_total: mib(f[4]),
+                temp,
+            })
+        })
+        .collect()
+}
+
+/// `nombre|tipo|salud|bytes` por línea (Get-PhysicalDisk).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_drives(text: &str) -> Vec<PhysDisk> {
+    text.lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.trim().split('|').map(str::trim).collect();
+            if f.len() != 4 || f[0].is_empty() {
+                return None;
+            }
+            Some(PhysDisk { name: f[0].to_string(), media: f[1].to_string(), health: f[2].to_string(), size: f[3].parse().unwrap_or(0) })
         })
         .collect()
 }
@@ -235,20 +374,46 @@ mod tests {
         let mut m = Monitor::new();
         let s = m.specs();
         assert!(s.ram_total > 0 && s.logical_cores > 0);
+        std::thread::sleep(Duration::from_millis(300));
         let l = m.sample();
         assert!(l.ram_used <= l.ram_total);
         assert!((0.0..=100.0).contains(&l.cpu));
+        assert!(l.top_mem.len() <= TOP && l.top_cpu.len() <= TOP);
+        assert!(l.top_mem.windows(2).all(|w| w[0].mem >= w[1].mem));
     }
 
     #[test]
-    fn parses_thermal_zones_and_nvidia() {
+    fn parses_thermal_zones() {
         let z = parse_thermal_zones("\\_TZ.TZ00|300\r\n\\_TZ.THRM|0\r\nbasura\r\n");
         assert_eq!(z.len(), 1);
         assert_eq!(z[0].label, "ACPI TZ00");
         assert!((z[0].celsius - 26.85).abs() < 0.1);
-        let g = parse_nvidia("NVIDIA GeForce RTX 3070, 54\n");
-        assert_eq!((g[0].label.as_str(), g[0].celsius), ("GPU GeForce RTX 3070", 54.0));
-        assert!(parse_nvidia("NVIDIA GeForce RTX 3070, [N/A]\n").is_empty());
+    }
+
+    #[test]
+    fn parses_nvidia_with_missing_values() {
+        let g = parse_nvidia("NVIDIA GeForce RTX 3070, 54, 37, 1520, 8192\n");
+        assert_eq!(g, vec![GpuLive { name: "GeForce RTX 3070".into(), util: 37.0, mem_used: 1520 * 1048576, mem_total: 8192 * 1048576, temp: Some(54.0) }]);
+        let n = parse_nvidia("NVIDIA GeForce RTX 3070, [N/A], [N/A], [N/A], 8192\nlinea rota\n");
+        assert_eq!(n.len(), 1);
+        assert_eq!((n[0].temp, n[0].util, n[0].mem_used), (None, 0.0, 0));
+    }
+
+    #[test]
+    fn parses_physical_disks() {
+        let d = parse_drives("Samsung SSD 980|SSD|Healthy|500107862016\r\nvacío|HDD\r\nWD Blue|HDD|Warning|1000204886016\r\n");
+        assert_eq!(d.len(), 2);
+        assert_eq!((d[0].media.as_str(), d[0].health.as_str(), d[0].size), ("SSD", "Healthy", 500107862016));
+        assert_eq!(d[1].health, "Warning");
+    }
+
+    #[test]
+    fn rankings_group_sort_and_cut() {
+        let hog = |n: &str, c: f32, m: u64| Hog { name: n.into(), cpu: c, mem: m };
+        let all = vec![hog("a", 0.1, 5), hog("b", 30.0, 1), hog("c", 12.0, 9), hog("d", 2.0, 7), hog("e", 8.0, 3), hog("f", 1.0, 2)];
+        let (cpu, mem) = top_hogs(all);
+        assert_eq!(cpu.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), ["b", "c", "e", "d"]);
+        assert_eq!(mem.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), ["c", "d", "a", "e"]);
     }
 
     #[test]
