@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wincleaner_core::{
     builtin_rules, clean_rule, create_restore_point, debloat_remove, debloat_scan, drives, find_leftovers, is_admin, list_batches,
-    list_programs, list_restore_points, open_system_restore, purge_batch, relaunch_as_admin,
+    list_programs, list_restore_points, quarantine_items, open_system_restore, purge_batch, relaunch_as_admin,
     remove_leftovers, restore_batch, restore_registry, uninstall_program,
     scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     Installed, Leftover, LeftoverOutcome, Program, Reason, RemoveResult, RestorePoint, Rule, ScanResult, StartupItem, UninstallOutcome,
@@ -123,6 +123,17 @@ async fn analyze(path: String) -> Result<DirReport, String> {
     tauri::async_runtime::spawn_blocking(move || scan_dir(&p, 25))
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Mueve a la cuarentena lo elegido en el analizador de espacio. El núcleo rechaza rutas del sistema.
+#[tauri::command]
+async fn space_quarantine(paths: Vec<String>) -> Result<CleanReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let items: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+        quarantine_items(&items, &quarantine_dir(), &now_batch())
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -272,7 +283,7 @@ fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, app_is_admin, restart_explorer, programs_list, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
+        .invoke_handler(tauri::generate_handler![list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, app_is_admin, restart_explorer, programs_list, program_uninstall, leftovers_find, leftovers_remove, registry_restore])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

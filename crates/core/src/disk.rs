@@ -13,12 +13,15 @@ pub struct Child {
     pub is_dir: bool,
     pub bytes: u64,
     pub files: u64,
+    /// Ruta del sistema que WinCleaner nunca mueve ni borra.
+    pub protected: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FileEntry {
     pub path: String,
     pub bytes: u64,
+    pub protected: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,6 +82,7 @@ impl Walk {
 }
 
 pub fn scan_dir(path: &Path, top: usize) -> DirReport {
+    let prot = crate::protect::Protected::from_env();
     let mut walk = Walk { top, heap: BinaryHeap::new(), skipped: 0 };
     let mut children = Vec::new();
     let (mut total, mut total_files) = (0, 0);
@@ -101,7 +105,7 @@ pub fn scan_dir(path: &Path, top: usize) -> DirReport {
                 };
                 total += bytes;
                 total_files += files;
-                children.push(Child { name, path: p.display().to_string(), is_dir, bytes, files });
+                children.push(Child { name, path: p.display().to_string(), is_dir, bytes, files, protected: prot.is_protected(&p) });
             }
         }
         Err(_) => walk.skipped += 1,
@@ -117,7 +121,7 @@ pub fn scan_dir(path: &Path, top: usize) -> DirReport {
         children,
         largest: largest
             .into_iter()
-            .map(|(bytes, p)| FileEntry { path: p.display().to_string(), bytes })
+            .map(|(bytes, p)| FileEntry { protected: prot.is_protected(&p), path: p.display().to_string(), bytes })
             .collect(),
         skipped: walk.skipped,
     }

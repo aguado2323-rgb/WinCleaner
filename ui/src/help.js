@@ -33,7 +33,7 @@ export const H = {
 
   spaceMap: {
     risk: 'safe',
-    text: 'Cada bloque es una carpeta o archivo; cuanto mayor, más espacio ocupa. Haz clic en una carpeta para entrar. Aquí solo se mira: no se puede borrar nada.',
+    text: 'Cada bloque es una carpeta o archivo; cuanto mayor, más espacio ocupa. Haz clic en una carpeta para entrar. Lo que marques con el cuadrado se mueve a la cuarentena (no se borra).',
   },
   spaceLargest: {
     risk: 'safe',
@@ -44,6 +44,14 @@ export const H = {
     text: 'Carpetas que Windows no deja leer sin permisos de administrador. No se cuentan en el total.',
   },
 
+  spaceDelete: {
+    risk: 'reversible',
+    text: 'Mueve lo marcado a la cuarentena en vez de borrarlo: los archivos siguen existiendo y puedes devolverlos a su sitio desde la pestaña Cuarentena. Los elementos del sistema (Windows, Archivos de programa, etc.) están bloqueados y no se pueden marcar.',
+  },
+  spaceProtected: {
+    risk: 'care',
+    text: 'Este elemento pertenece a Windows o es una carpeta de la que dependen tus programas. WinCleaner no permite moverlo ni borrarlo para que no puedas dañar el sistema por error.',
+  },
   startupToggle: {
     risk: 'reversible',
     text: 'Elige si este programa se inicia solo al encender el equipo. «No» solo lo desactiva: el programa sigue instalado y puedes volver a activarlo. Desactivar apps de arranque acelera el inicio.',
