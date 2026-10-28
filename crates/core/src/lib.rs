@@ -4,5 +4,5 @@
 mod clean;
 mod rules;
 
-pub use clean::{clean_rule, scan_rule, CleanReport, ScanResult};
+pub use clean::{clean_rule, restore_batch, scan_rule, CleanReport, Mode, ScanResult};
 pub use rules::{builtin_rules, expand_env, Rule};
