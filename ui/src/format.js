@@ -1,4 +1,6 @@
-const nf = (d) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+import { i18n } from './i18n.svelte.js';
+
+const nf = (d) => new Intl.NumberFormat(i18n.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /** Tamaño legible: { n: '3,24', u: 'GB' }. */
 export function size(bytes) {
@@ -15,12 +17,12 @@ export function fmt(bytes) {
 }
 
 export function fmtDate(batch) {
-  return new Date(Number(batch) * 1000).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(Number(batch) * 1000).toLocaleString(i18n.locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 /** `2026-10-27` → `27 oct 2026`; vacío → `—`. */
 export function fmtDay(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T00:00:00');
-  return isNaN(d) ? '—' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
+  return isNaN(d) ? '—' : d.toLocaleDateString(i18n.locale, { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
 }

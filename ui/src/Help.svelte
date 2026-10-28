@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   // Icono «?» con la explicación de una opción: qué hace y cuánto riesgo tiene.
   let { text, risk = '', label = 'Qué es esto' } = $props();
 
@@ -34,7 +35,7 @@
     bind:this={btn}
     type="button"
     class="q"
-    aria-label={label}
+    aria-label={t(label)}
     aria-expanded={open}
     onmouseenter={show}
     onmouseleave={() => (open = false)}
@@ -48,7 +49,7 @@
   >?</button>
   {#if open}
     <span use:portal class="pop" class:up={pos.up} role="tooltip" style="left:{pos.left}px;top:{pos.top}px">
-      {#if risk}<b class="risk {risk}">{RISK[risk]}</b>{/if}
+      {#if risk}<b class="risk {risk}">{t(RISK[risk])}</b>{/if}
       {text}
     </span>
   {/if}

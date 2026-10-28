@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import { invoke } from '@tauri-apps/api/core';
   import Clean from './Clean.svelte';
   import Quarantine from './Quarantine.svelte';
@@ -14,6 +15,7 @@
   import Power from './Power.svelte';
   import Report from './Report.svelte';
   import Schedule from './Schedule.svelte';
+  import { i18n } from './i18n.svelte.js';
 
   const sections = [
     ['clean', 'Limpieza'],
@@ -54,8 +56,8 @@
   const systemDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
   let theme = $state((() => {
     try {
-      const t = localStorage.getItem('wc-theme');
-      if (t === 'light' || t === 'dark') return t;
+      const saved = localStorage.getItem('wc-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
     } catch {
       /* sin almacenamiento: se sigue al sistema */
     }
@@ -121,17 +123,17 @@
       <span>Win<b>Cleaner</b></span>
     </div>
 
-    <nav aria-label="Secciones">
+    <nav aria-label={t('Secciones')}>
       {#each sections as [id, name] (id)}
         <button class:active={view === id} onclick={() => go(id)}>
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
-          <span class="t">{name}</span>
+          <span class="t">{t(name)}</span>
           {#if id === 'quarantine' && q.batches.length}<span class="c">{q.batches.length}</span>{/if}
         </button>
       {/each}
     </nav>
 
-    <button class="theme" onclick={toggleTheme} aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+    <button class="theme" onclick={toggleTheme} aria-label={theme === 'dark' ? t('Cambiar a modo claro') : t('Cambiar a modo oscuro')}>
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
         {#if theme === 'dark'}
           <path d="M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4" /><circle cx="12" cy="12" r="4" />
@@ -139,8 +141,13 @@
           <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />
         {/if}
       </svg>
-      <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+      <span>{theme === 'dark' ? t('Modo claro') : t('Modo oscuro')}</span>
     </button>
+
+    <div class="lang" role="group" aria-label={t('Idioma')}>
+      <button class:on={i18n.lang === 'es'} onclick={() => i18n.set('es')}>ES</button>
+      <button class:on={i18n.lang === 'en'} onclick={() => i18n.set('en')}>EN</button>
+    </div>
   </aside>
 
   <main>
@@ -203,6 +210,9 @@
   nav button.active .ico { color: var(--accent); }
   nav button.active::before { content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 4px; border-radius: 0 3px 3px 0; background: var(--accent); }
   nav button .c { font-family: var(--mono); font-size: 11px; color: var(--on-accent); background: var(--accent); border-radius: 9px; padding: 0 6px; }
+  .lang { display: flex; gap: 6px; margin-top: 10px; }
+  .lang button { flex: 1; border: 1px solid rgb(255 255 255 / 0.14); background: none; border-radius: 8px; padding: 6px 0; color: var(--side-dim); font-family: var(--mono); font-size: 12px; }
+  .lang button.on { color: var(--side-ink); background: rgb(255 255 255 / 0.09); border-color: rgb(255 255 255 / 0.3); }
   .theme { margin-top: auto; display: flex; align-items: center; gap: 12px; border: 1px solid rgb(255 255 255 / 0.14); background: none; border-radius: 8px; padding: 9px 12px; color: var(--side-dim); font-size: 13px; transition: color 0.12s, border-color 0.12s; }
   .theme:hover { color: var(--side-ink); border-color: rgb(255 255 255 / 0.3); }
   .theme .ico { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

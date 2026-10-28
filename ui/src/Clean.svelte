@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -39,7 +40,7 @@
       const res = await invoke('scan', { ids: rules.map((r) => r.id) });
       results = Object.fromEntries(res.map((r) => [r.rule_id, r]));
     } catch (e) {
-      notify('No se pudo analizar: ' + e);
+      notify(t('No se pudo analizar: ') + e);
     }
     phase = 'ready';
   }
@@ -50,7 +51,7 @@
       selected = Object.fromEntries(rules.map((r) => [r.id, r.safe]));
       await scan();
     } catch (e) {
-      notify('No se pudieron cargar las reglas: ' + e);
+      notify(t('No se pudieron cargar las reglas: ') + e);
       phase = 'ready';
     }
   }
@@ -66,18 +67,18 @@
       await refreshQuarantine();
       phase = 'done';
       notify(
-        `${files} archivos movidos a la cuarentena` + (skipped ? ` · ${skipped} en uso, omitidos` : ''),
-        files ? { label: 'Deshacer', run: () => undo(out.batch) } : null
+        t('{n} archivos movidos a la cuarentena', { n: files }) + (skipped ? t(' · {n} en uso, omitidos', { n: skipped }) : ''),
+        files ? { label: t('Deshacer'), run: () => undo(out.batch) } : null
       );
     } catch (e) {
-      notify('No se pudo limpiar: ' + e);
+      notify(t('No se pudo limpiar: ') + e);
       phase = 'ready';
     }
   }
 
   async function undo(batch) {
     const out = await invoke('restore', { batch });
-    notify(`${out.restored} archivos restaurados`);
+    notify(t('{n} archivos restaurados', { n: out.restored }));
     await refreshQuarantine();
     await scan();
   }
@@ -99,9 +100,9 @@
     binConfirm = false;
     try {
       await invoke('recycle_clear');
-      notify('Papelera vaciada.');
+      notify(t('Papelera vaciada.'));
     } catch (e) {
-      notify('No se pudo vaciar la Papelera: ' + e);
+      notify(t('No se pudo vaciar la Papelera: ') + e);
     }
     await loadBin();
     binBusy = false;
@@ -116,23 +117,23 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
 
-<p class="label">Limpieza</p>
-<p class="lede">Marca lo que quieras limpiar. Pasa el ratón por el <b>?</b> de cada línea para ver qué es y si tiene algún riesgo. Nada se borra: todo va a la cuarentena.</p>
+<p class="label">{t('Limpieza')}</p>
+<p class="lede">{t('Marca lo que quieras limpiar. Pasa el ratón por el')} <b>?</b> {t('de cada línea para ver qué es y si tiene algún riesgo. Nada se borra: todo va a la cuarentena.')}</p>
 
 <section class="hero">
   <div class="figure" class:busy={phase === 'scanning' || phase === 'cleaning'}>
     {#if phase === 'scanning'}
-      <span class="big dots" aria-label="Analizando">···</span>
+      <span class="big dots" aria-label={t('Analizando')}>···</span>
     {:else}
       <span class="big num">{shown.n}</span><span class="unit num">{shown.u}</span>
     {/if}
   </div>
   <p class="cap">
-    {#if phase === 'scanning'}Analizando tu equipo…
-    {:else if phase === 'cleaning'}Moviendo a la cuarentena…
-    {:else if phase === 'done'}liberados · están en la cuarentena por si cambias de idea
-    {:else if total}recuperables · {ids.length} {ids.length === 1 ? 'categoría' : 'categorías'} seleccionadas
-    {:else}no hay nada seleccionado que limpiar{/if}
+    {#if phase === 'scanning'}{t('Analizando tu equipo…')}
+    {:else if phase === 'cleaning'}{t('Moviendo a la cuarentena…')}
+    {:else if phase === 'done'}{t('liberados · están en la cuarentena por si cambias de idea')}
+    {:else if total}{t('recuperables')} · {ids.length} {ids.length === 1 ? t('categoría seleccionada') : t('categorías seleccionadas')}
+    {:else}{t('no hay nada seleccionado que limpiar')}{/if}
   </p>
 
   <div class="tape" aria-hidden="true">
@@ -143,25 +144,25 @@
 
   <div class="act">
     {#if phase === 'done'}
-      <button class="btn primary" onclick={scan}>Analizar de nuevo</button>
-      <button class="link" onclick={openQuarantine}>Ver cuarentena →</button>
+      <button class="btn primary" onclick={scan}>{t('Analizar de nuevo')}</button>
+      <button class="link" onclick={openQuarantine}>{t('Ver cuarentena →')}</button>
     {:else}
       <button class="btn primary" disabled={phase !== 'ready' || !total} onclick={() => (confirming = true)}>
-        {total ? `Limpiar ${fmt(total)}` : 'Nada que limpiar'}
+        {total ? t('Limpiar {x}', { x: fmt(total) }) : t('Nada que limpiar')}
       </button>
-      <Help text={H.cleanButton.text} risk={H.cleanButton.risk} label="Qué hace Limpiar" />
-      <button class="link" disabled={phase !== 'ready'} onclick={scan}>Analizar de nuevo</button>
-      <Help text={H.cleanRescan.text} risk={H.cleanRescan.risk} label="Qué hace Analizar" />
+      <Help text={H.cleanButton.text} risk={H.cleanButton.risk} label={t('Qué hace Limpiar')} />
+      <button class="link" disabled={phase !== 'ready'} onclick={scan}>{t('Analizar de nuevo')}</button>
+      <Help text={H.cleanRescan.text} risk={H.cleanRescan.risk} label={t('Qué hace Analizar')} />
     {/if}
   </div>
 </section>
 
 {#each groups as [category, list] (category)}
   <div class="group">
-    <h2 class="label">{category}</h2>
+    <h2 class="label">{t(category)}</h2>
     <span class="sel">
-      <button class="link" onclick={() => setAll(list, true)}>Todo</button>
-      <button class="link" onclick={() => setAll(list, false)}>Nada</button>
+      <button class="link" onclick={() => setAll(list, true)}>{t('Todo')}</button>
+      <button class="link" onclick={() => setAll(list, false)}>{t('Nada')}</button>
     </span>
   </div>
   <ul>
@@ -172,10 +173,10 @@
           <input type="checkbox" bind:checked={selected[r.id]} disabled={phase === 'cleaning'} />
           <span class="box" aria-hidden="true"></span>
           <span class="txt">
-            <b>{r.name}</b>
-            <small>{r.description}</small>
+            <b>{t(r.name)}</b>
+            <small>{t(r.description)}</small>
           </span>
-          <Help text={r.help} risk={r.safe ? 'reversible' : 'care'} label="Qué hace {r.name}" />
+          <Help text={r.help} risk={r.safe ? 'reversible' : 'care'} label={t('Qué hace {n}', { n: t(r.name) })} />
           <span class="mini" aria-hidden="true"><i style="width:{(bytes / maxBytes) * 100}%"></i></span>
           <span class="sz num">{phase === 'scanning' ? '—' : fmt(bytes)}</span>
         </label>
@@ -189,11 +190,11 @@
   <div class="overlay" role="presentation" onclick={() => (confirming = false)}>
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
     <div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-      <h3>¿Limpiar {fmt(total)}?</h3>
-      <p>Los archivos no se borran: pasan a la cuarentena y puedes devolverlos a su sitio cuando quieras.</p>
+      <h3>{t('¿Limpiar {x}?', { x: fmt(total) })}</h3>
+      <p>{t('Los archivos no se borran: pasan a la cuarentena y puedes devolverlos a su sitio cuando quieras.')}</p>
       <div class="row">
-        <button class="btn" onclick={() => (confirming = false)}>Cancelar</button>
-        <button class="btn primary" onclick={clean}>Limpiar</button>
+        <button class="btn" onclick={() => (confirming = false)}>{t('Cancelar')}</button>
+        <button class="btn primary" onclick={clean}>{t('Limpiar')}</button>
       </div>
     </div>
   </div>
@@ -201,16 +202,16 @@
 
 <section class="bin">
   <div class="binTxt">
-    <b>Papelera de reciclaje</b>
-    <small>{bin ? (bin.items ? `${bin.items} elementos · ${fmt(bin.bytes)}` : 'Está vacía') : 'Comprobando…'} · se vacía de verdad, sin pasar por la cuarentena</small>
+    <b>{t('Papelera de reciclaje')}</b>
+    <small>{bin ? (bin.items ? t('{n} elementos', { n: bin.items }) + ' · ' + fmt(bin.bytes) : t('Está vacía')) : t('Comprobando…')} · {t('se vacía de verdad, sin pasar por la cuarentena')}</small>
   </div>
-  <Help text={H.recycle.text} risk={H.recycle.risk} label="Qué hace Vaciar la Papelera" />
+  <Help text={H.recycle.text} risk={H.recycle.risk} label={t('Qué hace Vaciar la Papelera')} />
   {#if binConfirm}
-    <span class="binAsk">¿Seguro?</span>
-    <button class="btn danger" disabled={binBusy} onclick={emptyBin}>Sí, vaciar</button>
-    <button class="link" onclick={() => (binConfirm = false)}>Cancelar</button>
+    <span class="binAsk">{t('¿Seguro?')}</span>
+    <button class="btn danger" disabled={binBusy} onclick={emptyBin}>{t('Sí, vaciar')}</button>
+    <button class="link" onclick={() => (binConfirm = false)}>{t('Cancelar')}</button>
   {:else}
-    <button class="btn" disabled={binBusy || !bin?.items} onclick={() => (binConfirm = true)}>Vaciar Papelera</button>
+    <button class="btn" disabled={binBusy || !bin?.items} onclick={() => (binConfirm = true)}>{t('Vaciar Papelera')}</button>
   {/if}
 </section>
 

@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -53,7 +54,7 @@
     try {
       programs = await invoke('programs_list');
     } catch (e) {
-      notify('No se pudo leer los programas: ' + e);
+      notify(t('No se pudo leer los programas: ') + e);
     }
     loading = false;
     loadIcons();
@@ -132,7 +133,7 @@
   async function undoRegistry() {
     try {
       const n = await invoke('registry_restore', { batch: result.batch });
-      notify(`${n} copias del registro restauradas`);
+      notify(t('{n} copias del registro restauradas', { n }));
     } catch (e) {
       notify(String(e));
     }
@@ -141,29 +142,29 @@
   load();
 </script>
 
-<p class="label">Desinstalar</p>
-<h1 class="h1">Fuera, y sin dejar rastro.</h1>
-<p class="lede">Usa el desinstalador oficial de cada programa y después busca lo que se haya dejado. Tú revisas los restos antes de quitar nada: las carpetas van a la cuarentena y las claves del registro se guardan en una copia.</p>
+<p class="label">{t('Desinstalar')}</p>
+<h1 class="h1">{t('Fuera, y sin dejar rastro.')}</h1>
+<p class="lede">{t('Usa el desinstalador oficial de cada programa y después busca lo que se haya dejado. Tú revisas los restos antes de quitar nada: las carpetas van a la cuarentena y las claves del registro se guardan en una copia.')}</p>
 
 <div class="bar">
-  <input class="search" type="search" placeholder="Buscar programa…" bind:value={query} aria-label="Buscar programa" />
+  <input class="search" type="search" placeholder={t('Buscar programa…')} bind:value={query} aria-label={t('Buscar programa')} />
   <span class="num">{shown.length}<small>/{programs.length}</small></span>
 </div>
 
 {#if loading}
   <p class="empty num">···</p>
 {:else if !shown.length}
-  <p class="empty">{programs.length ? 'Ningún programa coincide.' : 'No se han encontrado programas instalados.'}</p>
+  <p class="empty">{programs.length ? t('Ningún programa coincide.') : t('No se han encontrado programas instalados.')}</p>
 {:else}
   <div class="cols label" role="row">
     <span class="ic"></span>
-    <button class="col nm" class:on={sortKey === 'name'} onclick={() => sortBy('name')}>Programa {sortKey === 'name' ? (sortAsc ? '↑' : '↓') : ''}</button>
-    <button class="col dt" class:on={sortKey === 'installed'} onclick={() => sortBy('installed')}>Instalado {sortKey === 'installed' ? (sortAsc ? '↑' : '↓') : ''}</button>
+    <button class="col nm" class:on={sortKey === 'name'} onclick={() => sortBy('name')}>{t('Programa')} {sortKey === 'name' ? (sortAsc ? '↑' : '↓') : ''}</button>
+    <button class="col dt" class:on={sortKey === 'installed'} onclick={() => sortBy('installed')}>{t('Instalado')} {sortKey === 'installed' ? (sortAsc ? '↑' : '↓') : ''}</button>
     <span class="col dt use">
-      <button class="col" class:on={sortKey === 'used'} onclick={() => sortBy('used')}>Último uso {sortKey === 'used' ? (sortAsc ? '↑' : '↓') : ''}</button>
-      <Help text={H.uninstallDates.text} risk={H.uninstallDates.risk} label="Qué son las fechas" />
+      <button class="col" class:on={sortKey === 'used'} onclick={() => sortBy('used')}>{t('Último uso')} {sortKey === 'used' ? (sortAsc ? '↑' : '↓') : ''}</button>
+      <Help text={H.uninstallDates.text} risk={H.uninstallDates.risk} label={t('Qué son las fechas')} />
     </span>
-    <button class="col sz" class:on={sortKey === 'size'} onclick={() => sortBy('size')}>Tamaño {sortKey === 'size' ? (sortAsc ? '↑' : '↓') : ''}</button>
+    <button class="col sz" class:on={sortKey === 'size'} onclick={() => sortBy('size')}>{t('Tamaño')} {sortKey === 'size' ? (sortAsc ? '↑' : '↓') : ''}</button>
     <span class="act"></span>
   </div>
   <ul>
@@ -184,8 +185,8 @@
         <span class="dt num">{fmtDay(p.last_used)}</span>
         <span class="sz num">{p.size_kb ? fmt(p.size_kb * 1024) : '—'}</span>
         <span class="act">
-          <button class="btn sm" onclick={() => ask(p)}>Desinstalar</button>
-          <Help text={H.uninstallButton.text} risk={H.uninstallButton.risk} label="Qué hace Desinstalar" />
+          <button class="btn sm" onclick={() => ask(p)}>{t('Desinstalar')}</button>
+          <Help text={H.uninstallButton.text} risk={H.uninstallButton.risk} label={t('Qué hace Desinstalar')} />
         </span>
       </li>
     {/each}
@@ -198,36 +199,36 @@
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
     <div class="dialog wide" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
       {#if step === 'confirm'}
-        <h3>¿Desinstalar {target.name}?</h3>
+        <h3>{t('¿Desinstalar {n}?', { n: target.name })}</h3>
         <p>
-          Se abrirá el desinstalador del propio programa.
-          {#if target.machine_wide}Está instalado para todos los usuarios: Windows pedirá permisos de administrador.{/if}
+          {t('Se abrirá el desinstalador del propio programa.')}
+          {#if target.machine_wide}{t('Está instalado para todos los usuarios: Windows pedirá permisos de administrador.')}{/if}
         </p>
         <label class="pt">
           <input type="checkbox" bind:checked={makePoint} />
           <span class="box" aria-hidden="true"></span>
-          <span>Crear un punto de restauración antes (recomendado)</span>
+          <span>{t('Crear un punto de restauración antes (recomendado)')}</span>
         </label>
-        <Help text={H.uninstallPoint.text} risk={H.uninstallPoint.risk} label="Qué es un punto de restauración" />
+        <Help text={H.uninstallPoint.text} risk={H.uninstallPoint.risk} label={t('Qué es un punto de restauración')} />
         {#if pointError}<p class="err">{pointError}</p>{/if}
         <div class="row">
-          <button class="btn" onclick={close}>Cancelar</button>
+          <button class="btn" onclick={close}>{t('Cancelar')}</button>
           {#if pointError}
-            <button class="btn" onclick={() => start(true)}>Continuar sin punto</button>
+            <button class="btn" onclick={() => start(true)}>{t('Continuar sin punto')}</button>
           {:else}
-            <button class="btn primary" onclick={() => start()}>Desinstalar</button>
+            <button class="btn primary" onclick={() => start()}>{t('Desinstalar')}</button>
           {/if}
         </div>
       {:else if step === 'running'}
-        <h3>Desinstalando…</h3>
-        <p>Sigue las instrucciones del desinstalador de {target.name}. WinCleaner espera a que termine.</p>
+        <h3>{t('Desinstalando…')}</h3>
+        <p>{t('Sigue las instrucciones del desinstalador de {n}. WinCleaner espera a que termine.', { n: target.name })}</p>
         <p class="num dots">···</p>
       {:else if step === 'scanning'}
-        <h3>Trabajando…</h3>
+        <h3>{t('Trabajando…')}</h3>
         <p class="num dots">···</p>
       {:else if step === 'leftovers'}
-        <h3>Restos de {target.name}</h3>
-        <p>Estas ubicaciones coinciden con el programa. Revisa y marca solo lo que quieras quitar.</p>
+        <h3>{t('Restos de {n}', { n: target.name })}</h3>
+        <p>{t('Estas ubicaciones coinciden con el programa. Revisa y marca solo lo que quieras quitar.')}</p>
         <ul class="lo">
           {#each leftovers as l, i}
             <li>
@@ -236,33 +237,32 @@
                 <span class="box" aria-hidden="true"></span>
                 <span class="txt">
                   <b>{l.path}</b>
-                  <small>{l.kind === 'folder' ? 'Carpeta · va a la cuarentena' : 'Registro · se guarda copia .reg'}</small>
+                  <small>{l.kind === 'folder' ? t('Carpeta · va a la cuarentena') : t('Registro · se guarda copia .reg')}</small>
                 </span>
-                <Help text={l.kind === 'folder' ? H.leftoverFolder.text : H.leftoverRegistry.text} risk={l.kind === 'folder' ? 'reversible' : 'care'} label="Qué es este resto" />
+                <Help text={l.kind === 'folder' ? H.leftoverFolder.text : H.leftoverRegistry.text} risk={l.kind === 'folder' ? 'reversible' : 'care'} label={t('Qué es este resto')} />
               </label>
             </li>
           {/each}
         </ul>
         <div class="row">
-          <button class="btn" onclick={() => (step = 'done')}>Dejarlos</button>
-          <button class="btn primary" disabled={!chosen.length} onclick={removeLeftovers}>Quitar {chosen.length}</button>
+          <button class="btn" onclick={() => (step = 'done')}>{t('Dejarlos')}</button>
+          <button class="btn primary" disabled={!chosen.length} onclick={removeLeftovers}>{t('Quitar {n}', { n: chosen.length })}</button>
         </div>
       {:else}
-        <h3>{outcome?.error && !outcome.removed ? 'No se pudo desinstalar' : 'Listo'}</h3>
+        <h3>{outcome?.error && !outcome.removed ? t('No se pudo desinstalar') : t('Listo')}</h3>
         {#if outcome?.error && !outcome.removed}
           <p>{outcome.error}</p>
         {:else if result}
           <p>
-            {result.folders} {result.folders === 1 ? 'carpeta' : 'carpetas'} a la cuarentena y {result.keys}
-            {result.keys === 1 ? 'clave' : 'claves'} del registro quitadas.
+            {t('{f} {fu} a la cuarentena y {k} {ku} del registro quitadas.', { f: result.folders, fu: result.folders === 1 ? t('carpeta') : t('carpetas'), k: result.keys, ku: result.keys === 1 ? t('clave') : t('claves') })}
           </p>
-          {#if result.errors.length}<p class="err">{result.errors.length} con error: {result.errors[0]}</p>{/if}
+          {#if result.errors.length}<p class="err">{t('{n} con error: {m}', { n: result.errors.length, m: result.errors[0] })}</p>{/if}
         {:else}
-          <p>{target.name} se ha desinstalado{leftovers.length ? '; los restos se han dejado como estaban' : ' y no se han encontrado restos'}.</p>
+          <p>{leftovers.length ? t('{n} se ha desinstalado; los restos se han dejado como estaban.', { n: target.name }) : t('{n} se ha desinstalado y no se han encontrado restos.', { n: target.name })}</p>
         {/if}
         <div class="row">
-          {#if result?.keys}<button class="btn" onclick={undoRegistry}>Restaurar registro</button>{/if}
-          <button class="btn primary" onclick={() => (target = null)}>Cerrar</button>
+          {#if result?.keys}<button class="btn" onclick={undoRegistry}>{t('Restaurar registro')}</button>{/if}
+          <button class="btn primary" onclick={() => (target = null)}>{t('Cerrar')}</button>
         </div>
       {/if}
     </div>

@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { fmt, fmtDate } from './format.js';
@@ -7,7 +8,7 @@
   let { notify } = $props();
 
   let r = $state(null);
-  const KIND = { clean: 'Limpieza', auto: 'Programada', purge: 'Cuarentena vaciada', recycle: 'Papelera' };
+  const KIND = { clean: 'Limpieza', auto: 'Programada', purge: 'Cuarentena vaciada', recycle: 'Papelera' }; // claves en español: se traducen al mostrarlas
 
   let max = $derived(r ? Math.max(1, ...r.last_30_days) : 1);
 
@@ -15,38 +16,38 @@
     try {
       r = await invoke('usage_report');
     } catch (e) {
-      notify('No se pudo leer el informe: ' + e);
+      notify(t('No se pudo leer el informe: ') + e);
     }
   }
 
   load();
 </script>
 
-<p class="label">Informe</p>
-<h1 class="h1">Lo que llevas liberado.</h1>
-<p class="lede">Resumen de lo que WinCleaner ha hecho en este equipo. Solo guarda cifras y fechas, nunca nombres de archivos. <Help text={H.reportInfo.text} risk={H.reportInfo.risk} label="Qué guarda el informe" /></p>
+<p class="label">{t('Informe')}</p>
+<h1 class="h1">{t('Lo que llevas liberado.')}</h1>
+<p class="lede">{t('Resumen de lo que WinCleaner ha hecho en este equipo. Solo guarda cifras y fechas, nunca nombres de archivos.')} <Help text={H.reportInfo.text} risk={H.reportInfo.risk} label={t('Qué guarda el informe')} /></p>
 
 {#if !r}
   <p class="empty num">···</p>
 {:else if !r.runs && !r.purged_bytes && !r.recycle_bytes}
-  <p class="empty">Todavía no hay nada que contar. Haz una limpieza y volverá aquí.</p>
+  <p class="empty">{t('Todavía no hay nada que contar. Haz una limpieza y volverá aquí.')}</p>
 {:else}
   <section class="stats">
-    <div><span class="num big">{fmt(r.cleaned_bytes)}</span><span class="cap">movidos a la cuarentena · {r.runs} {r.runs === 1 ? 'limpieza' : 'limpiezas'}</span></div>
-    <div><span class="num big">{fmt(r.purged_bytes + r.recycle_bytes)}</span><span class="cap">borrados de verdad (cuarentena y Papelera)</span></div>
+    <div><span class="num big">{fmt(r.cleaned_bytes)}</span><span class="cap">{t('movidos a la cuarentena')} · {r.runs} {r.runs === 1 ? t('limpieza') : t('limpiezas')}</span></div>
+    <div><span class="num big">{fmt(r.purged_bytes + r.recycle_bytes)}</span><span class="cap">{t('borrados de verdad (cuarentena y Papelera)')}</span></div>
   </section>
 
-  <p class="label sub">Últimos 30 días</p>
-  <div class="chart" role="img" aria-label="Limpiado por día en los últimos 30 días">
+  <p class="label sub">{t('Últimos 30 días')}</p>
+  <div class="chart" role="img" aria-label={t('Limpiado por día en los últimos 30 días')}>
     {#each r.last_30_days as b, i (i)}
       <i class:zero={!b} style="height:{b ? Math.max(6, (b / max) * 100) : 2}%" title={fmt(b)}></i>
     {/each}
   </div>
 
-  <p class="label sub">Últimos movimientos</p>
+  <p class="label sub">{t('Últimos movimientos')}</p>
   <ul>
     {#each r.recent as e, n (n)}
-      <li><span class="num when">{fmtDate(e.when)}</span><span class="kind">{KIND[e.kind] ?? e.kind}</span><span class="num sz">{fmt(e.bytes)}</span></li>
+      <li><span class="num when">{fmtDate(e.when)}</span><span class="kind">{t(KIND[e.kind] ?? e.kind)}</span><span class="num sz">{fmt(e.bytes)}</span></li>
     {/each}
   </ul>
 {/if}

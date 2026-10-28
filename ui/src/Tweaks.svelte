@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n.svelte.js';
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
@@ -26,7 +27,7 @@
     try {
       [items, admin] = await Promise.all([invoke('tweaks_state'), invoke('app_is_admin')]);
     } catch (e) {
-      notify('No se pudieron leer los ajustes: ' + e);
+      notify(t('No se pudieron leer los ajustes: ') + e);
     }
     loading = false;
   }
@@ -41,65 +42,65 @@
     }
   }
 
-  async function toggle(t, enable) {
-    if (t.applied === enable) return;
-    busy[t.id] = true;
+  async function toggle(tw, enable) {
+    if (tw.applied === enable) return;
+    busy[tw.id] = true;
     try {
       if (enable) await ensurePoint();
-      await invoke('tweak_apply', { id: t.id, enable });
-      t.applied = enable;
-      const note = RESTART[t.restart];
+      await invoke('tweak_apply', { id: tw.id, enable });
+      tw.applied = enable;
+      const note = RESTART[tw.restart];
       notify(
-        `${t.name}: ${enable ? 'aplicado' : 'deshecho'}.${note ? ' ' + note : ''}`,
-        t.restart === 'explorer' ? { label: 'Reiniciar Explorador', run: () => invoke('restart_explorer') } : undefined
+        `${tw.name}: ${enable ? t('aplicado') : t('deshecho')}.${note ? ' ' + t(note) : ''}`,
+        tw.restart === 'explorer' ? { label: t('Reiniciar Explorador'), run: () => invoke('restart_explorer') } : undefined
       );
     } catch (e) {
       notify(String(e));
     }
-    busy[t.id] = false;
+    busy[tw.id] = false;
   }
 
   load();
 </script>
 
-<p class="label">Ajustes de Windows</p>
-<h1 class="h1">Windows a tu manera.</h1>
-<p class="lede">Cambios opcionales en el propio Windows (no en WinCleaner): privacidad, rendimiento e interfaz. Pulsa «Aplicar» para activar el cambio y «Deshacer» para volver a como estaba. <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label="Cómo funcionan los ajustes" /></p>
+<p class="label">{t('Ajustes de Windows')}</p>
+<h1 class="h1">{t('Windows a tu manera.')}</h1>
+<p class="lede">{t('Cambios opcionales en el propio Windows (no en WinCleaner): privacidad, rendimiento e interfaz. Pulsa «Aplicar» para activar el cambio y «Deshacer» para volver a como estaba.')} <Help text={H.tweakToggle.text} risk={H.tweakToggle.risk} label={t('Cómo funcionan los ajustes')} /></p>
 
 <section class="top">
   <span class="big num">{appliedCount}<small>/{items.length}</small></span>
-  <span class="cap">cambios aplicados en Windows</span>
+  <span class="cap">{t('cambios aplicados en Windows')}</span>
   <label class="pt">
     <input type="checkbox" bind:checked={makePoint} />
     <span class="box" aria-hidden="true"></span>
-    <span>Punto de restauración antes de empezar</span>
+    <span>{t('Punto de restauración antes de empezar')}</span>
   </label>
-  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label="Qué es un punto de restauración" />
+  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label={t('Qué es un punto de restauración')} />
 </section>
 {#if !loading && !admin}
-  <p class="note">Sin permisos de administrador: los ajustes marcados como «Admin» no se pueden cambiar. Puedes reiniciar como administrador desde «Restauración».</p>
+  <p class="note">{t('Sin permisos de administrador: los ajustes marcados como «Admin» no se pueden cambiar. Puedes reiniciar como administrador desde «Restauración».')}</p>
 {/if}
 
 {#if loading}
   <p class="empty num">···</p>
 {:else}
   {#each groups as [cat, list] (cat)}
-    <div class="group"><h2 class="label">{cat}</h2><span class="num">{list.filter((t) => t.applied).length}/{list.length}</span></div>
+    <div class="group"><h2 class="label">{cat}</h2><span class="num">{list.filter((tw) => tw.applied).length}/{list.length}</span></div>
     <ul>
-      {#each list as t, n (t.id)}
-        <li style="animation-delay:{n * 18}ms" class:on={t.applied}>
+      {#each list as tw, n (tw.id)}
+        <li style="animation-delay:{n * 18}ms" class:on={tw.applied}>
           <div class="txt">
             <span class="top2">
-              <b>{t.name}</b>
-              {#if t.risk === 'care'}<span class="tag label warn">Con cuidado</span>{/if}
-              {#if t.needs_admin}<span class="tag label">Admin</span>{/if}
+              <b>{tw.name}</b>
+              {#if tw.risk === 'care'}<span class="tag label warn">{t('Con cuidado')}</span>{/if}
+              {#if tw.needs_admin}<span class="tag label">{t('Admin')}</span>{/if}
             </span>
-            <small>{t.what}</small>
+            <small>{tw.what}</small>
           </div>
-          <Help text={t.help + (RESTART[t.restart] ? ' ' + RESTART[t.restart] : '')} risk={t.risk === 'care' ? 'care' : 'reversible'} label="Qué hace {t.name}" />
-          <span class="state label" class:on={t.applied}>{t.applied ? 'Aplicado' : 'Sin aplicar'}</span>
-          <button class="act" class:undo={t.applied} disabled={busy[t.id] || (t.needs_admin && !admin)} onclick={() => toggle(t, !t.applied)}>
-            {t.applied ? 'Deshacer' : 'Aplicar'}
+          <Help text={tw.help + (RESTART[tw.restart] ? ' ' + t(RESTART[tw.restart]) : '')} risk={tw.risk === 'care' ? 'care' : 'reversible'} label={t('Qué hace {n}', { n: tw.name })} />
+          <span class="state label" class:on={tw.applied}>{tw.applied ? t('Aplicado') : t('Sin aplicar')}</span>
+          <button class="act" class:undo={tw.applied} disabled={busy[tw.id] || (tw.needs_admin && !admin)} onclick={() => toggle(tw, !tw.applied)}>
+            {tw.applied ? t('Deshacer') : t('Aplicar')}
           </button>
         </li>
       {/each}
