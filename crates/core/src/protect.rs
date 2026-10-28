@@ -78,40 +78,55 @@ pub fn is_protected(path: &Path) -> bool {
 mod tests {
     use super::*;
 
+    /// Rutas de prueba con forma Unix; en Windows se convierten a `C:/...` para que sean absolutas.
+    fn abs(s: &str) -> PathBuf {
+        if cfg!(windows) {
+            let rest = s.trim_start_matches('/');
+            match rest.split_once('/') {
+                Some((d, tail)) if d.len() == 1 => PathBuf::from(format!("{}:/{tail}", d.to_uppercase())),
+                None if rest.len() == 1 => PathBuf::from(format!("{}:/", rest.to_uppercase())),
+                _ if rest.is_empty() => PathBuf::from("C:/"),
+                _ => PathBuf::from(s),
+            }
+        } else {
+            PathBuf::from(s)
+        }
+    }
+
     fn prot() -> Protected {
         Protected::new(
-            &[PathBuf::from("/c/Users"), PathBuf::from("/c/Program Files"), PathBuf::from("/c/Users/aldo")],
-            &[PathBuf::from("/c/Windows")],
+            &[abs("/c/Users"), abs("/c/Program Files"), abs("/c/Users/aldo")],
+            &[abs("/c/Windows")],
         )
     }
 
     #[test]
     fn system_trees_and_roots_are_protected() {
         let p = prot();
-        assert!(p.is_protected(Path::new("/")));
-        assert!(p.is_protected(Path::new("/c/Windows")));
-        assert!(p.is_protected(Path::new("/c/windows/System32/cmd.exe")), "sin distinguir mayúsculas");
-        assert!(p.is_protected(Path::new("/c/Users")));
-        assert!(p.is_protected(Path::new("/c/Program Files")));
-        assert!(p.is_protected(Path::new("/c/Users/aldo")));
+        assert!(p.is_protected(&abs("/")));
+        assert!(p.is_protected(&abs("/c/Windows")));
+        assert!(p.is_protected(&abs("/c/windows/System32/cmd.exe")), "sin distinguir mayúsculas");
+        assert!(p.is_protected(&abs("/c/Users")));
+        assert!(p.is_protected(&abs("/c/Program Files")));
+        assert!(p.is_protected(&abs("/c/Users/aldo")));
         assert!(p.is_protected(Path::new("relativa/ruta")));
-        assert!(p.is_protected(Path::new("/c/Users/aldo/../../Windows")));
+        assert!(p.is_protected(&abs("/c/Users/aldo/../../Windows")));
     }
 
     #[test]
     fn special_files_are_protected_anywhere() {
         let p = prot();
-        assert!(p.is_protected(Path::new("/c/pagefile.sys")));
-        assert!(p.is_protected(Path::new("/d/System Volume Information")));
-        assert!(p.is_protected(Path::new("/c/$Recycle.Bin")));
+        assert!(p.is_protected(&abs("/c/pagefile.sys")));
+        assert!(p.is_protected(&abs("/d/System Volume Information")));
+        assert!(p.is_protected(&abs("/c/$Recycle.Bin")));
     }
 
     #[test]
     fn ordinary_user_content_is_allowed() {
         let p = prot();
-        assert!(!p.is_protected(Path::new("/c/Users/aldo/Downloads/big.iso")));
-        assert!(!p.is_protected(Path::new("/c/Program Files/Algun Juego")));
-        assert!(!p.is_protected(Path::new("/c/Juegos")));
-        assert!(!p.is_protected(Path::new("/c/Windows.old")));
+        assert!(!p.is_protected(&abs("/c/Users/aldo/Downloads/big.iso")));
+        assert!(!p.is_protected(&abs("/c/Program Files/Algun Juego")));
+        assert!(!p.is_protected(&abs("/c/Juegos")));
+        assert!(!p.is_protected(&abs("/c/Windows.old")));
     }
 }
