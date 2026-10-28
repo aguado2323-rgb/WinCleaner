@@ -8,11 +8,13 @@
   import Debloat from './Debloat.svelte';
   import Uninstall from './Uninstall.svelte';
   import Tweaks from './Tweaks.svelte';
+  import Duplicates from './Duplicates.svelte';
 
   const sections = [
     ['clean', 'Limpieza'],
     ['quarantine', 'Cuarentena'],
     ['space', 'Espacio'],
+    ['duplicates', 'Duplicados'],
     ['startup', 'Arranque'],
     ['uninstall', 'Desinstalar'],
     ['debloat', 'Preinstaladas'],
@@ -25,6 +27,7 @@
     clean: 'M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.4 2.4M15.3 15.3l2.4 2.4M17.7 6.3l-2.4 2.4M8.7 15.3l-2.4 2.4',
     quarantine: 'M3 7h18v4H3zM5 11v9h14v-9M10 15h4',
     space: 'M12 3a9 9 0 1 0 9 9h-9zM14.5 3.3A9 9 0 0 1 20.7 9.5h-6.2z',
+    duplicates: 'M8 8h11v11H8zM5 15V5h10',
     startup: 'M12 3v9M6.3 6.8a8 8 0 1 0 11.4 0',
     uninstall: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
     debloat: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5',
@@ -132,6 +135,8 @@
           <Clean {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
         {:else if view === 'space'}
           <Space {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
+        {:else if view === 'duplicates'}
+          <Duplicates {notify} {refreshQuarantine} openQuarantine={() => go('quarantine')} />
         {:else if view === 'startup'}
           <Startup {notify} />
         {:else if view === 'uninstall'}
