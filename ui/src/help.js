@@ -103,6 +103,14 @@ export const H = {
     text: 'Guarda una foto de la configuración de Windows antes de quitar apps. Ojo: las apps de la Tienda no vuelven con el punto de restauración, se reinstalan desde Microsoft Store.',
   },
 
+  dupInfo: {
+    risk: 'safe',
+    text: 'Compara el contenido de los archivos de las carpetas elegidas (no solo el nombre) y agrupa los que son idénticos. Tú eliges qué copia se queda; las demás van a la cuarentena, de donde se pueden restaurar. Antes de mover cada una se vuelve a comprobar que sigue siendo idéntica. No toca carpetas del sistema.',
+  },
+  oldInfo: {
+    risk: 'safe',
+    text: 'Lista archivos muy grandes que no se han modificado desde hace tiempo, para que decidas si siguen haciendo falta. No se marca nada por ti. Lo que elijas va a la cuarentena y se puede restaurar. Ten en cuenta que «sin modificar» no significa «sin usar»: un vídeo o un juego pueden llevar años sin cambiar y seguir en uso.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',

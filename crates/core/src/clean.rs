@@ -41,16 +41,33 @@ fn is_safe_root(p: &Path) -> bool {
     p.is_absolute() && p.components().count() > 2
 }
 
-/// Mueve un archivo; si origen y destino están en volúmenes distintos, copia y borra.
-fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
+/// Si ya hay algo en `to` (dos archivos con el mismo nombre en la misma limpieza), busca un nombre libre
+/// («nombre (2).ext»): mover encima destruiría la copia anterior, porque en Windows `rename` sobrescribe.
+fn free_name(to: &Path) -> PathBuf {
+    if fs::symlink_metadata(to).is_err() {
+        return to.to_path_buf();
+    }
+    let stem = to.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let ext = to.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    (2u32..)
+        .map(|n| to.with_file_name(format!("{stem} ({n}){ext}")))
+        .find(|p| fs::symlink_metadata(p).is_err())
+        .unwrap_or_else(|| to.to_path_buf())
+}
+
+/// Mueve un archivo y devuelve dónde ha quedado; si origen y destino están en volúmenes distintos,
+/// copia y borra. Nunca sobrescribe algo que ya estuviera en la cuarentena.
+fn move_file(from: &Path, to: &Path) -> std::io::Result<PathBuf> {
+    let to = free_name(to);
     if let Some(parent) = to.parent() {
         fs::create_dir_all(parent)?;
     }
-    if fs::rename(from, to).is_ok() {
-        return Ok(());
+    if fs::rename(from, &to).is_ok() {
+        return Ok(to);
     }
-    fs::copy(from, to)?;
-    fs::remove_file(from)
+    fs::copy(from, &to)?;
+    fs::remove_file(from)?;
+    Ok(to)
 }
 
 struct Ctx<'a> {
@@ -82,7 +99,7 @@ fn walk(dir: &Path, root: &Path, rule_id: &str, ctx: &mut Ctx) {
                 let rel = path.strip_prefix(root).unwrap_or(&path);
                 let stored = qdir.join(batch).join(rule_id).join(rel);
                 match move_file(&path, &stored) {
-                    Ok(()) => {
+                    Ok(stored) => {
                         ctx.rep.files += 1;
                         ctx.rep.bytes += size;
                         ctx.entries.push(Entry { original: path, stored });
@@ -153,7 +170,7 @@ pub fn quarantine_items(items: &[PathBuf], quarantine_dir: &Path, batch: &str) -
             let name = item.file_name().map(PathBuf::from).unwrap_or_default();
             let stored = quarantine_dir.join(batch).join("space").join(name);
             match move_file(item, &stored) {
-                Ok(()) => {
+                Ok(stored) => {
                     ctx.rep.files += 1;
                     ctx.rep.bytes += meta.len();
                     ctx.entries.push(Entry { original: item.clone(), stored });
@@ -474,6 +491,22 @@ mod tests {
         fs::write(q.path().join("9/manifest.json"), b"[]").unwrap();
         assert!(list_batches(q.path()).is_empty());
         assert!(!q.path().join("9").exists());
+    }
+
+    #[test]
+    fn same_named_files_do_not_overwrite_each_other_in_quarantine() {
+        let src = tempfile::tempdir().unwrap();
+        let q = tempfile::tempdir().unwrap();
+        fs::create_dir_all(src.path().join("a")).unwrap();
+        fs::create_dir_all(src.path().join("b")).unwrap();
+        fs::write(src.path().join("a/foto.jpg"), b"AAAA").unwrap();
+        fs::write(src.path().join("b/foto.jpg"), b"BB").unwrap();
+        let rep = quarantine_items(&[src.path().join("a/foto.jpg"), src.path().join("b/foto.jpg")], q.path(), "60");
+        assert_eq!((rep.files, rep.bytes, rep.errors.len()), (2, 6, 0));
+        let (restored, errors) = restore_batch(q.path(), "60");
+        assert_eq!((restored, errors.len()), (2, 0));
+        assert_eq!(fs::read(src.path().join("a/foto.jpg")).unwrap(), b"AAAA");
+        assert_eq!(fs::read(src.path().join("b/foto.jpg")).unwrap(), b"BB");
     }
 
     #[test]
