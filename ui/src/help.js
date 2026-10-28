@@ -123,6 +123,10 @@ export const H = {
     risk: 'final',
     text: 'Si lo activas, los lotes de la cuarentena más antiguos que el plazo se borran de verdad y ya no se pueden recuperar. Por defecto está en «Nunca»: la cuarentena solo se vacía cuando tú quieras.',
   },
+  updatesInfo: {
+    risk: 'care',
+    text: 'Usa winget, el gestor de paquetes oficial de Windows, para buscar versiones nuevas de tus programas. WinCleaner no descarga nada por su cuenta: es winget quien baja e instala, con el instalador del propio fabricante. Una actualización puede cambiar el programa o pedir permisos de administrador; no se puede deshacer desde aquí, así que revisa la lista y cierra antes los programas que vayas a actualizar.',
+  },
   tweakToggle: {
     risk: 'reversible',
     text: '«Aplicar» activa el cambio descrito en Windows y «Deshacer» lo quita dejando el valor original que había antes de tocarlo. Cada ajuste cambia solo unos valores concretos del registro de Windows; no instala ni borra nada.',
