@@ -1,6 +1,7 @@
 <script module>
   // Las especificaciones no cambian: se piden una vez aunque el monitor se apague y se vuelva a encender.
   let savedSpecs = null;
+  let savedDrives = null;
 </script>
 
 <script>
@@ -16,6 +17,7 @@
 
   const HISTORY = 40;
   let specs = $state(null);
+  let drives = $state(null); // null = todavía leyendo
   let live = $state(null);
   let history = $state([]);
   let netHistory = $state([]);
@@ -31,11 +33,12 @@
     return d ? `${d} ${t('d')} ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
   }
 
-  let busy = false;
+  // Si una muestra tarda más que el intervalo no se encolan otras detrás; pasados 15 s se vuelve a
+  // intentar igualmente, para que una respuesta perdida no deje el panel parado.
+  let busySince = 0;
   async function sample() {
-    // Si una muestra tarda más que el intervalo, no se encolan otras detrás.
-    if (busy) return;
-    busy = true;
+    if (busySince && Date.now() - busySince < 15000) return;
+    const mine = (busySince = Date.now());
     try {
       live = await invoke('monitor_sample');
       history = [...history, live.cpu].slice(-HISTORY);
@@ -44,7 +47,7 @@
     } catch {
       failed = true;
     } finally {
-      busy = false;
+      if (busySince === mine) busySince = 0;
     }
   }
 
@@ -57,27 +60,34 @@
     }
   }
 
+  async function loadDrives() {
+    if (savedDrives) return (drives = savedDrives);
+    try {
+      drives = savedDrives = await invoke('monitor_drives');
+    } catch {
+      drives = [];
+    }
+  }
+
   onMount(() => {
     // El panel solo existe mientras el monitor está activado; su colocación (al lado o encima) la decide
     // el CSS según el ancho, así que nunca desaparece al redimensionar. Con la ventana minimizada u oculta
     // no se consulta nada: nadie mira el panel y cada muestra cuesta CPU.
-    let timer;
-    const sync = () => {
-      const poll = !document.hidden;
-      if (poll === Boolean(timer)) return;
-      clearInterval(timer);
-      timer = undefined;
-      if (poll) {
-        sample();
-        timer = setInterval(sample, 2000);
-      }
+    // La primera muestra se pide siempre; después, cada 2 s salvo con la ventana oculta. Si WebView2 dice
+    // «oculta» pero la ventana tiene el foco, se cree al foco (el aviso de visibilidad no siempre es fiable).
+    const tick = () => {
+      if (document.hidden && !document.hasFocus()) return;
+      sample();
     };
+    sample();
+    const timer = setInterval(tick, 2000);
+    const wake = () => !document.hidden && sample();
+    document.addEventListener('visibilitychange', wake);
     loadSpecs();
-    sync();
-    document.addEventListener('visibilitychange', sync);
+    loadDrives();
     return () => {
       clearInterval(timer);
-      document.removeEventListener('visibilitychange', sync);
+      document.removeEventListener('visibilitychange', wake);
     };
   });
 
@@ -127,10 +137,10 @@
 
     <section>
       <p class="k">{t('Salud de los discos')}</p>
-      {#if !specs}
+      {#if !drives}
         <p class="sub num">···</p>
-      {:else if specs.drives.length}
-        {#each specs.drives as d (d.name)}
+      {:else if drives.length}
+        {#each drives as d (d.name)}
           <div class="disk">
             <div class="row"><span>{d.name}</span><b class="state" class:bad={!healthy(d.health)}>{healthy(d.health) ? t('Correcta') : health(d.health)}</b></div>
             <p class="sub num">{[d.media, d.size ? fmt(d.size) : '', d.temp != null ? `${Math.round(d.temp)} °C` : '', d.wear != null ? t('{w}% de vida usada', { w: d.wear }) : ''].filter(Boolean).join(' · ')}</p>

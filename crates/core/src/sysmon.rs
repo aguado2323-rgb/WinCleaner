@@ -3,6 +3,7 @@
 
 use serde::Serialize;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use sysinfo::{Components, Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
@@ -104,18 +105,67 @@ pub struct Live {
     pub gpu: Vec<GpuLive>,
 }
 
-/// Guarda el estado entre muestras: la CPU y la red se miden entre dos lecturas seguidas.
-pub struct Monitor {
-    sys: System,
-    nets: Networks,
-    last: Instant,
-    // Lecturas caras: se guardan y se repiten cada pocos segundos, no en cada muestra.
+/// Lecturas caras (WMI, PowerShell, nvidia-smi). Se refrescan en un hilo aparte y la muestra usa
+/// lo último que haya: así un PowerShell lento o colgado nunca deja el monitor sin datos.
+#[derive(Default)]
+struct Slow {
     sensors: Vec<Temp>,
     sensors_at: Option<Instant>,
     zones: Vec<Temp>,
     zones_at: Option<Instant>,
     gpu: Vec<GpuLive>,
     gpu_at: Option<Instant>,
+    /// Hay un hilo refrescando; no se lanza otro.
+    running: bool,
+}
+
+impl Slow {
+    fn anything_due(&self) -> bool {
+        due(self.sensors_at, SENSORS_EVERY, self.sensors.is_empty())
+            || due(self.zones_at, ZONES_EVERY, self.zones.is_empty())
+            || due(self.gpu_at, GPU_EVERY, self.gpu.is_empty())
+    }
+}
+
+/// Refresca lo que toque. Corre en su propio hilo; cada lectura se guarda en cuanto termina.
+fn refresh_slow(slow: &Mutex<Slow>) {
+    let (want_sensors, want_zones, want_gpu) = match slow.lock() {
+        Ok(s) => (
+            due(s.sensors_at, SENSORS_EVERY, s.sensors.is_empty()),
+            due(s.zones_at, ZONES_EVERY, s.zones.is_empty()),
+            due(s.gpu_at, GPU_EVERY, s.gpu.is_empty()),
+        ),
+        Err(_) => return,
+    };
+    if want_gpu {
+        let gpu = std::panic::catch_unwind(imp::nvidia).unwrap_or_default();
+        if let Ok(mut s) = slow.lock() {
+            s.gpu = gpu;
+            s.gpu_at = Some(Instant::now());
+        }
+    }
+    if want_sensors {
+        let sensors = read_temps();
+        if let Ok(mut s) = slow.lock() {
+            s.sensors = sensors;
+            s.sensors_at = Some(Instant::now());
+        }
+    }
+    if want_zones {
+        let zones = std::panic::catch_unwind(imp::zone_temps).unwrap_or_default();
+        if let Ok(mut s) = slow.lock() {
+            s.zones = zones;
+            s.zones_at = Some(Instant::now());
+        }
+    }
+}
+
+/// Guarda el estado entre muestras: la CPU y la red se miden entre dos lecturas seguidas.
+pub struct Monitor {
+    sys: System,
+    nets: Networks,
+    last: Instant,
+    slow: Arc<Mutex<Slow>>,
     disks: Vec<DiskUse>,
     disks_at: Option<Instant>,
 }
@@ -136,12 +186,7 @@ impl Monitor {
             sys,
             nets: Networks::new_with_refreshed_list(),
             last: Instant::now(),
-            sensors: Vec::new(),
-            sensors_at: None,
-            zones: Vec::new(),
-            zones_at: None,
-            gpu: Vec::new(),
-            gpu_at: None,
+            slow: Arc::new(Mutex::new(Slow::default())),
             disks: Vec::new(),
             disks_at: None,
         }
@@ -158,8 +203,15 @@ impl Monitor {
             logical_cores: self.sys.cpus().len(),
             ram_total: self.sys.total_memory(),
             gpus: imp::gpus(),
-            drives: imp::drives(),
+            // La salud de los discos va aparte (`drives`): puede tardar varios segundos.
+            drives: Vec::new(),
         }
+    }
+
+    /// Discos físicos con su estado de salud. Lento (PowerShell y contadores de fiabilidad): se pide
+    /// una vez y por separado para no retrasar el resto del panel.
+    pub fn drives() -> Vec<PhysDisk> {
+        std::panic::catch_unwind(imp::drives).unwrap_or_default()
     }
 
     pub fn sample(&mut self) -> Live {
@@ -176,8 +228,7 @@ impl Monitor {
             self.disks = disk_list(&Disks::new_with_refreshed_list());
             self.disks_at = Some(Instant::now());
         }
-        let gpu = self.gpu();
-        let mut temps = self.temps();
+        let (gpu, mut temps) = self.slow_values();
         for g in &gpu {
             if let Some(t) = g.temp {
                 let label = format!("GPU {}", g.name);
@@ -201,32 +252,30 @@ impl Monitor {
         }
     }
 
-    /// Sensores del propio sistema y, si no hay o además, las zonas térmicas de Windows.
-    /// Cuando no se encontró nada se vuelve a intentar solo cada pocos minutos.
-    fn temps(&mut self) -> Vec<Temp> {
-        if due(self.sensors_at, SENSORS_EVERY, self.sensors.is_empty()) {
-            self.sensors = read_temps();
-            self.sensors_at = Some(Instant::now());
-        }
-        let mut out = self.sensors.clone();
-        if due(self.zones_at, ZONES_EVERY, self.zones.is_empty()) {
-            self.zones = std::panic::catch_unwind(imp::zone_temps).unwrap_or_default();
-            self.zones_at = Some(Instant::now());
-        }
-        for t in &self.zones {
-            if !out.iter().any(|o| o.label == t.label) {
-                out.push(t.clone());
+    /// GPU y temperaturas con lo último leído (sensores del sistema y, además, zonas térmicas de Windows).
+    /// Si toca refrescar, lanza un hilo aparte y no lo espera: la muestra nunca se queda bloqueada.
+    fn slow_values(&mut self) -> (Vec<GpuLive>, Vec<Temp>) {
+        let Ok(mut s) = self.slow.lock() else { return (Vec::new(), Vec::new()) };
+        if !s.running && s.anything_due() {
+            s.running = true;
+            let slow = Arc::clone(&self.slow);
+            let started = std::thread::Builder::new().name("monitor-lento".into()).spawn(move || {
+                refresh_slow(&slow);
+                if let Ok(mut s) = slow.lock() {
+                    s.running = false;
+                }
+            });
+            if started.is_err() {
+                s.running = false;
             }
         }
-        out
-    }
-
-    fn gpu(&mut self) -> Vec<GpuLive> {
-        if due(self.gpu_at, GPU_EVERY, self.gpu.is_empty()) {
-            self.gpu = std::panic::catch_unwind(imp::nvidia).unwrap_or_default();
-            self.gpu_at = Some(Instant::now());
+        let mut temps = s.sensors.clone();
+        for t in &s.zones {
+            if !temps.iter().any(|o| o.label == t.label) {
+                temps.push(t.clone());
+            }
         }
-        self.gpu.clone()
+        (s.gpu.clone(), temps)
     }
 }
 
@@ -299,36 +348,72 @@ mod imp {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
 
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    use std::io::Read;
+    use std::process::Stdio;
+    use std::time::{Duration, Instant};
 
-    fn run(program: &str, args: &[&str]) -> Option<String> {
-        let out = Command::new(program).args(args).creation_flags(CREATE_NO_WINDOW).output().ok()?;
-        out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    /// Lecturas en vivo (zonas térmicas, nvidia-smi).
+    const LIVE_LIMIT: Duration = Duration::from_secs(10);
+    /// Consultas de una vez (tarjetas gráficas, discos): los contadores de fiabilidad pueden tardar.
+    const ONCE_LIMIT: Duration = Duration::from_secs(30);
+
+    /// Ejecuta un programa y devuelve su salida. Si no termina a tiempo se cierra y no hay dato:
+    /// un PowerShell o un driver colgado nunca deja el monitor esperando para siempre.
+    fn run(program: &str, args: &[&str], limit: Duration) -> Option<String> {
+        let mut child = Command::new(program)
+            .args(args)
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?;
+        let mut stdout = child.stdout.take()?;
+        let reader = std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = stdout.read_to_end(&mut buf);
+            buf
+        });
+        let end = Instant::now() + limit;
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(st)) => break Some(st),
+                Ok(None) if Instant::now() < end => std::thread::sleep(Duration::from_millis(50)),
+                _ => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+            }
+        };
+        let out = reader.join().ok()?;
+        status.filter(|s| s.success()).map(|_| String::from_utf8_lossy(&out).into_owned())
     }
 
-    fn powershell(script: &str) -> Option<String> {
-        run("powershell", &["-NoProfile", "-NonInteractive", "-Command", script])
+    fn powershell(script: &str, limit: Duration) -> Option<String> {
+        run("powershell", &["-NoProfile", "-NonInteractive", "-Command", script], limit)
     }
 
     /// Zonas térmicas ACPI del contador de rendimiento (no pide administrador).
     pub fn zone_temps() -> Vec<Temp> {
         let script = "Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation | ForEach-Object { $_.Name + '|' + $_.Temperature }";
-        powershell(script).map(|t| super::parse_thermal_zones(&t)).unwrap_or_default()
+        powershell(script, LIVE_LIMIT).map(|t| super::parse_thermal_zones(&t)).unwrap_or_default()
     }
 
     pub fn nvidia() -> Vec<GpuLive> {
         let args = ["--query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"];
-        run("nvidia-smi", &args).map(|t| super::parse_nvidia(&t)).unwrap_or_default()
+        run("nvidia-smi", &args, LIVE_LIMIT).map(|t| super::parse_nvidia(&t)).unwrap_or_default()
     }
 
     pub fn gpus() -> Vec<String> {
-        powershell("Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name }").map(|t| super::parse_names(&t)).unwrap_or_default()
+        powershell("Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name }", ONCE_LIMIT).map(|t| super::parse_names(&t)).unwrap_or_default()
     }
 
     /// Discos físicos con el estado de salud que informa Windows (no pide administrador).
     pub fn drives() -> Vec<PhysDisk> {
         let script = "Get-PhysicalDisk | ForEach-Object { $r = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue; $_.FriendlyName + '|' + $_.MediaType + '|' + $_.HealthStatus + '|' + $_.Size + '|' + $r.Temperature + '|' + $r.Wear }";
-        powershell(script).map(|t| super::parse_drives(&t)).unwrap_or_default()
+        powershell(script, ONCE_LIMIT).map(|t| super::parse_drives(&t)).unwrap_or_default()
     }
 }
 
