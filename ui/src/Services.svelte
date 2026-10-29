@@ -51,20 +51,22 @@
   load();
 </script>
 
-<p class="label">{t('Servicios')}</p>
-<h1 class="h1">{t('Menos cosas al arrancar.')}</h1>
-<p class="lede">{t('Los servicios son programas de Windows que arrancan solos con el equipo. Pasar uno a «Manual» no lo borra ni lo detiene: solo evita que arranque solo, y Windows lo inicia si algo lo necesita. «Deshacer» devuelve el inicio original.')} <Help text={H.servicesInfo.text} risk={H.servicesInfo.risk} label={t('Cómo funcionan los servicios')} /></p>
+<div class="sticky">
+  <p class="label">{t('Servicios')}</p>
+  <h1 class="h1">{t('Menos cosas al arrancar.')}</h1>
+  <p class="lede">{t('Los servicios son programas de Windows que arrancan solos con el equipo. Pasar uno a «Manual» no lo borra ni lo detiene: solo evita que arranque solo, y Windows lo inicia si algo lo necesita. «Deshacer» devuelve el inicio original.')} <Help text={H.servicesInfo.text} risk={H.servicesInfo.risk} label={t('Cómo funcionan los servicios')} /></p>
 
-<section class="top">
-  <span class="big num">{appliedCount}<small>/{items.length}</small></span>
-  <span class="cap">{t('servicios en Manual')}</span>
-  <label class="pt">
-    <input type="checkbox" bind:checked={makePoint} />
-    <span class="box" aria-hidden="true"></span>
-    <span>{t('Punto de restauración antes de empezar')}</span>
-  </label>
-  <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label={t('Qué es un punto de restauración')} />
-</section>
+  <section class="top">
+    <span class="big num">{appliedCount}<small>/{items.length}</small></span>
+    <span class="cap">{t('servicios en Manual')}</span>
+    <label class="pt">
+      <input type="checkbox" bind:checked={makePoint} />
+      <span class="box" aria-hidden="true"></span>
+      <span>{t('Punto de restauración antes de empezar')}</span>
+    </label>
+    <Help text={H.tweakPoint.text} risk={H.tweakPoint.risk} label={t('Qué es un punto de restauración')} />
+  </section>
+</div>
 {#if !loading && !admin}
   <p class="note">{t('Sin permisos de administrador no se puede cambiar ningún servicio. Puedes reiniciar como administrador desde «Restauración».')}</p>
 {/if}

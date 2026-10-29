@@ -117,45 +117,47 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
 
-<p class="label">{t('Limpieza')}</p>
-<p class="lede">{t('Marca lo que quieras limpiar. Pasa el ratón por el')} <b>?</b> {t('de cada línea para ver qué es y si tiene algún riesgo. Nada se borra: todo va a la cuarentena.')}</p>
+<div class="sticky">
+  <p class="label">{t('Limpieza')}</p>
+  <p class="lede">{t('Marca lo que quieras limpiar. Pasa el ratón por el')} <b>?</b> {t('de cada línea para ver qué es y si tiene algún riesgo. Nada se borra: todo va a la cuarentena.')}</p>
 
-<section class="hero">
-  <div class="figure" class:busy={phase === 'scanning' || phase === 'cleaning'}>
-    {#if phase === 'scanning'}
-      <span class="big dots" aria-label={t('Analizando')}>···</span>
-    {:else}
-      <span class="big num">{shown.n}</span><span class="unit num">{shown.u}</span>
-    {/if}
-  </div>
-  <p class="cap">
-    {#if phase === 'scanning'}{t('Analizando tu equipo…')}
-    {:else if phase === 'cleaning'}{t('Moviendo a la cuarentena…')}
-    {:else if phase === 'done'}{t('liberados · están en la cuarentena por si cambias de idea')}
-    {:else if total}{t('recuperables')} · {ids.length} {ids.length === 1 ? t('categoría seleccionada') : t('categorías seleccionadas')}
-    {:else}{t('no hay nada seleccionado que limpiar')}{/if}
-  </p>
+  <section class="hero">
+    <div class="figure" class:busy={phase === 'scanning' || phase === 'cleaning'}>
+      {#if phase === 'scanning'}
+        <span class="big dots" aria-label={t('Analizando')}>···</span>
+      {:else}
+        <span class="big num">{shown.n}</span><span class="unit num">{shown.u}</span>
+      {/if}
+    </div>
+    <p class="cap">
+      {#if phase === 'scanning'}{t('Analizando tu equipo…')}
+      {:else if phase === 'cleaning'}{t('Moviendo a la cuarentena…')}
+      {:else if phase === 'done'}{t('liberados · están en la cuarentena por si cambias de idea')}
+      {:else if total}{t('recuperables')} · {ids.length} {ids.length === 1 ? t('categoría seleccionada') : t('categorías seleccionadas')}
+      {:else}{t('no hay nada seleccionado que limpiar')}{/if}
+    </p>
 
-  <div class="tape" aria-hidden="true">
-    {#each tape as seg, i (seg.id)}
-      <i class:lead={i === 0} style="flex:{seg.bytes}" title="{seg.name} · {fmt(seg.bytes)}"></i>
-    {/each}
-  </div>
+    <div class="tape" aria-hidden="true">
+      {#each tape as seg, i (seg.id)}
+        <i class:lead={i === 0} style="flex:{seg.bytes}" title="{seg.name} · {fmt(seg.bytes)}"></i>
+      {/each}
+    </div>
 
-  <div class="act">
-    {#if phase === 'done'}
-      <button class="btn primary" onclick={scan}>{t('Analizar de nuevo')}</button>
-      <button class="link" onclick={openQuarantine}>{t('Ver cuarentena →')}</button>
-    {:else}
-      <button class="btn primary" disabled={phase !== 'ready' || !total} onclick={() => (confirming = true)}>
-        {total ? t('Limpiar {x}', { x: fmt(total) }) : t('Nada que limpiar')}
-      </button>
-      <Help text={H.cleanButton.text} risk={H.cleanButton.risk} label={t('Qué hace Limpiar')} />
-      <button class="link" disabled={phase !== 'ready'} onclick={scan}>{t('Analizar de nuevo')}</button>
-      <Help text={H.cleanRescan.text} risk={H.cleanRescan.risk} label={t('Qué hace Analizar')} />
-    {/if}
-  </div>
-</section>
+    <div class="act">
+      {#if phase === 'done'}
+        <button class="btn primary" onclick={scan}>{t('Analizar de nuevo')}</button>
+        <button class="link" onclick={openQuarantine}>{t('Ver cuarentena →')}</button>
+      {:else}
+        <button class="btn primary" disabled={phase !== 'ready' || !total} onclick={() => (confirming = true)}>
+          {total ? t('Limpiar {x}', { x: fmt(total) }) : t('Nada que limpiar')}
+        </button>
+        <Help text={H.cleanButton.text} risk={H.cleanButton.risk} label={t('Qué hace Limpiar')} />
+        <button class="link" disabled={phase !== 'ready'} onclick={scan}>{t('Analizar de nuevo')}</button>
+        <Help text={H.cleanRescan.text} risk={H.cleanRescan.risk} label={t('Qué hace Analizar')} />
+      {/if}
+    </div>
+  </section>
+</div>
 
 {#each groups as [category, list] (category)}
   <div class="group">
@@ -222,6 +224,11 @@
   .binAsk { font-family: var(--mono); font-size: 12px; }
 
   .hero { padding: 26px 0 30px; }
+  /* Ventana baja: la cabecera fija ocupa menos para dejar sitio a la lista. */
+  @media (max-height: 760px) {
+    .hero { padding: 12px 0 18px; }
+    .big { font-size: 76px; }
+  }
   .figure { display: flex; align-items: baseline; gap: 10px; line-height: 0.9; }
   .big { font-size: 112px; font-weight: 500; letter-spacing: -0.06em; }
   .unit { font-size: 28px; color: var(--accent); font-weight: 600; }

@@ -391,4 +391,11 @@ export const en = {
   "Últimos movimientos": "Latest activity",
   "Mostrar el monitor": "Show monitor",
   "Ocultar el monitor": "Hide monitor",
+  "Salud de los discos": "Disk health",
+  "Correcta": "Healthy",
+  "Aviso": "Warning",
+  "Con fallos": "Failing",
+  "Desconocida": "Unknown",
+  "{w}% de vida usada": "{w}% of life used",
+  "Windows no informa de la salud de los discos en este equipo.": "Windows does not report disk health on this PC.",
 };

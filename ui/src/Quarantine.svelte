@@ -32,16 +32,18 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (confirm = null)} />
 
-<p class="label">{t('Cuarentena')}</p>
-<h1 class="h1">{t('Lo que limpias se guarda aquí.')}</h1>
-<p class="lede">{t('Nada se borra de verdad hasta que lo decides tú. Restaura una limpieza y los archivos vuelven a su sitio original.')}</p>
+<div class="sticky">
+  <p class="label">{t('Cuarentena')}</p>
+  <h1 class="h1">{t('Lo que limpias se guarda aquí.')}</h1>
+  <p class="lede">{t('Nada se borra de verdad hasta que lo decides tú. Restaura una limpieza y los archivos vuelven a su sitio original.')}</p>
 
-<section class="where">
-  <span class="label">{t('Carpeta')}</span>
-  <code>{q.path || '—'}</code>
-  <button class="link" onclick={openFolder}>{t('Abrir')} ↗</button>
-  <Help text={H.quarantineOpen.text} risk={H.quarantineOpen.risk} label={t('Qué hace Abrir')} />
-</section>
+  <section class="where">
+    <span class="label">{t('Carpeta')}</span>
+    <code>{q.path || '—'}</code>
+    <button class="link" onclick={openFolder}>{t('Abrir')} ↗</button>
+    <Help text={H.quarantineOpen.text} risk={H.quarantineOpen.risk} label={t('Qué hace Abrir')} />
+  </section>
+</div>
 
 {#if q.batches.length}
   <div class="head">

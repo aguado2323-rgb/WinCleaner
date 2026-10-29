@@ -142,13 +142,15 @@
   load();
 </script>
 
-<p class="label">{t('Desinstalar')}</p>
-<h1 class="h1">{t('Fuera, y sin dejar rastro.')}</h1>
-<p class="lede">{t('Usa el desinstalador oficial de cada programa y después busca lo que se haya dejado. Tú revisas los restos antes de quitar nada: las carpetas van a la cuarentena y las claves del registro se guardan en una copia.')}</p>
+<div class="sticky">
+  <p class="label">{t('Desinstalar')}</p>
+  <h1 class="h1">{t('Fuera, y sin dejar rastro.')}</h1>
+  <p class="lede">{t('Usa el desinstalador oficial de cada programa y después busca lo que se haya dejado. Tú revisas los restos antes de quitar nada: las carpetas van a la cuarentena y las claves del registro se guardan en una copia.')}</p>
 
-<div class="bar">
-  <input class="search" type="search" placeholder={t('Buscar programa…')} bind:value={query} aria-label={t('Buscar programa')} />
-  <span class="num">{shown.length}<small>/{programs.length}</small></span>
+  <div class="bar">
+    <input class="search" type="search" placeholder={t('Buscar programa…')} bind:value={query} aria-label={t('Buscar programa')} />
+    <span class="num">{shown.length}<small>/{programs.length}</small></span>
+  </div>
 </div>
 
 {#if loading}

@@ -124,35 +124,37 @@
   init();
 </script>
 
-<p class="label">{t('Espacio')}</p>
-<h1 class="h1">{t('Qué ocupa tu disco.')}</h1>
-<p class="lede">{t('Haz clic en un bloque para entrar y marca lo que quieras quitar: irá a la cuarentena, no se borra.')} <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label={t('Cómo leer el mapa')} /></p>
+<div class="sticky">
+  <p class="label">{t('Espacio')}</p>
+  <h1 class="h1">{t('Qué ocupa tu disco.')}</h1>
+  <p class="lede">{t('Haz clic en un bloque para entrar y marca lo que quieras quitar: irá a la cuarentena, no se borra.')} <Help text={H.spaceMap.text} risk={H.spaceMap.risk} label={t('Cómo leer el mapa')} /></p>
 
-<div class="roots tabs">
-  {#each roots as r (r.path)}
-    <button class:on={activeRoot === r.path} onclick={() => go(r.path)}>{r.label.startsWith('Disco ') ? t('Disco {d}', { d: r.label.slice(6) }) : t(r.label)}</button>
-  {/each}
-</div>
-
-{#if current}
-  <nav class="crumbs num" aria-label={t('Ruta')}>
-    {#each crumbs as c, i (c.path)}
-      {#if i}<span>/</span>{/if}
-      <button class:last={i === crumbs.length - 1} onclick={() => go(c.path)}>{c.name}</button>
+  <div class="roots tabs">
+    {#each roots as r (r.path)}
+      <button class:on={activeRoot === r.path} onclick={() => go(r.path)}>{r.label.startsWith('Disco ') ? t('Disco {d}', { d: r.label.slice(6) }) : t(r.label)}</button>
     {/each}
-  </nav>
-{/if}
+  </div>
 
-<section class="stats num">
-  {#if report}
-    <span><b>{fmt(report.bytes)}</b> {t('en total')}</span>
-    <span><b>{report.files.toLocaleString(i18n.locale)}</b> {t('archivos')}</span>
-    <span><b>{report.children.length}</b> {t('elementos')}</span>
-    {#if report.skipped}<span class="warn"><b>{report.skipped}</b> {t('sin acceso')} <Help text={H.spaceSkipped.text} risk={H.spaceSkipped.risk} label={t('Qué es sin acceso')} /></span>{/if}
-  {:else}
-    <span>—</span>
+  {#if current}
+    <nav class="crumbs num" aria-label={t('Ruta')}>
+      {#each crumbs as c, i (c.path)}
+        {#if i}<span>/</span>{/if}
+        <button class:last={i === crumbs.length - 1} onclick={() => go(c.path)}>{c.name}</button>
+      {/each}
+    </nav>
   {/if}
-</section>
+
+  <section class="stats num">
+    {#if report}
+      <span><b>{fmt(report.bytes)}</b> {t('en total')}</span>
+      <span><b>{report.files.toLocaleString(i18n.locale)}</b> {t('archivos')}</span>
+      <span><b>{report.children.length}</b> {t('elementos')}</span>
+      {#if report.skipped}<span class="warn"><b>{report.skipped}</b> {t('sin acceso')} <Help text={H.spaceSkipped.text} risk={H.spaceSkipped.risk} label={t('Qué es sin acceso')} /></span>{/if}
+    {:else}
+      <span>—</span>
+    {/if}
+  </section>
+</div>
 
 <section class="map" aria-label={t('Mapa de espacio')}>
   {#if loading}

@@ -46,9 +46,11 @@
   load();
 </script>
 
-<p class="label">{t('Energía')}</p>
-<h1 class="h1">{t('Rendimiento o batería.')}</h1>
-<p class="lede">{t('Elige el plan de energía de Windows. Cambiar es inmediato y siempre puedes volver al anterior.')} <Help text={H.powerInfo.text} risk={H.powerInfo.risk} label={t('Qué es un plan de energía')} /></p>
+<div class="sticky">
+  <p class="label">{t('Energía')}</p>
+  <h1 class="h1">{t('Rendimiento o batería.')}</h1>
+  <p class="lede">{t('Elige el plan de energía de Windows. Cambiar es inmediato y siempre puedes volver al anterior.')} <Help text={H.powerInfo.text} risk={H.powerInfo.risk} label={t('Qué es un plan de energía')} /></p>
+</div>
 
 {#if loading}
   <p class="empty num">···</p>
