@@ -21,6 +21,28 @@
   let confirming = $state(false);
   let working = $state(false);
 
+  // Ajuste «Borrar directamente»: sin cuarentena. Apagado por defecto y avisado al activarlo.
+  const load = () => {
+    try {
+      return localStorage.getItem('wc-dup-direct') === 'on';
+    } catch {
+      return false;
+    }
+  };
+  let direct = $state(load());
+  let askDirect = $state(false);
+
+  function setDirect(on) {
+    direct = on;
+    askDirect = false;
+    try {
+      localStorage.setItem('wc-dup-direct', on ? 'on' : 'off');
+    } catch {}
+  }
+
+  const toggleDirect = () => (direct ? setDirect(false) : (askDirect = true));
+  const outLabel = () => (direct ? t('Se borra') : t('A la cuarentena'));
+
   let groups = $state([]); // { bytes, files:[{path,modified}], keep, on }
   let report = $state(null);
   let old = $state([]);
@@ -102,6 +124,8 @@
     minMb = which === 'dups' ? 10 : 500;
   }
 
+  const skippedNote = (rep) => (rep.errors.length ? ' · ' + t('{n} no se tocaron', { n: rep.errors.length }) : '');
+
   async function moveDuplicates() {
     confirming = false;
     working = true;
@@ -110,11 +134,16 @@
         keep: g.files[g.keep].path,
         remove: g.files.filter((_, i) => i !== g.keep).map((f) => f.path),
       }));
-      const rep = await invoke('dup_quarantine', { selection });
-      notify(t('{n} copias a la cuarentena ({b})', { n: rep.files, b: fmt(rep.bytes) }) + (rep.errors.length ? ' · ' + t('{n} no se tocaron', { n: rep.errors.length }) : ''), {
-        label: t('Ver cuarentena'),
-        run: openQuarantine,
-      });
+      if (direct) {
+        const rep = await invoke('dup_delete', { selection });
+        notify(t('{n} copias borradas ({b})', { n: rep.files, b: fmt(rep.bytes) }) + skippedNote(rep));
+      } else {
+        const rep = await invoke('dup_quarantine', { selection });
+        notify(t('{n} copias a la cuarentena ({b})', { n: rep.files, b: fmt(rep.bytes) }) + skippedNote(rep), {
+          label: t('Ver cuarentena'),
+          run: openQuarantine,
+        });
+      }
       await refreshQuarantine();
       await search();
     } catch (e) {
@@ -127,11 +156,17 @@
     confirming = false;
     working = true;
     try {
-      const rep = await invoke('space_quarantine', { paths: oldPicked.map((f) => f.path) });
-      notify(t('{n} archivos a la cuarentena ({b})', { n: rep.files, b: fmt(rep.bytes) }) + (rep.errors.length ? ' · ' + t('{n} no se tocaron', { n: rep.errors.length }) : ''), {
-        label: t('Ver cuarentena'),
-        run: openQuarantine,
-      });
+      const paths = oldPicked.map((f) => f.path);
+      if (direct) {
+        const rep = await invoke('files_delete', { paths });
+        notify(t('{n} archivos borrados ({b})', { n: rep.files, b: fmt(rep.bytes) }) + skippedNote(rep));
+      } else {
+        const rep = await invoke('space_quarantine', { paths });
+        notify(t('{n} archivos a la cuarentena ({b})', { n: rep.files, b: fmt(rep.bytes) }) + skippedNote(rep), {
+          label: t('Ver cuarentena'),
+          run: openQuarantine,
+        });
+      }
       await refreshQuarantine();
       await search();
     } catch (e) {
@@ -145,7 +180,7 @@
   init();
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = false)} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && (confirming = askDirect = false)} />
 
 <div class="sticky">
   <p class="label">{t('Duplicados')}</p>
@@ -230,6 +265,18 @@
     </div>
   </section>
 
+  <div class="direct" class:on={direct}>
+    <label class="chk">
+      <input type="checkbox" checked={direct} onclick={(e) => { e.preventDefault(); toggleDirect(); }} />
+      <span class="box" aria-hidden="true"></span>
+      <span>{t('Borrar directamente, sin pasar por la cuarentena')}</span>
+    </label>
+    <Help text={H.dupDirect.text} risk="final" />
+    {#if direct}
+      <span class="warn">{t('Activado: lo que elijas se borra para siempre y no se puede restaurar.')}</span>
+    {/if}
+  </div>
+
   <p class="target" class:none={!anyFolder}>
     {#if phase === 'scanning'}
       <span class="label">{t('Buscando en')}</span>
@@ -258,7 +305,7 @@
     <section class="sum">
       <span class="big num">{fmt(removeBytes)}</span>
       <span class="cap">{t('recuperables · {g} grupos · {c} copias a quitar', { g: groups.length, c: removeCount })}</span>
-      <button class="btn primary" disabled={!removeCount || working} onclick={() => (confirming = true)}>{t('Mover a la cuarentena')}</button>
+      <button class="btn primary" class:kill={direct} disabled={!removeCount || working} onclick={() => (confirming = true)}>{direct ? t('Borrar para siempre') : t('Mover a la cuarentena')}</button>
     </section>
     <section class="rule">
       <label>
@@ -271,7 +318,8 @@
       </label>
       <p class="hint">
         <span class="badge keep">{t('Se conserva')}</span> {t('se queda donde está.')}
-        <span class="badge out">{t('A la cuarentena')}</span> {t('se mueve a la cuarentena (se puede restaurar).')}
+        <span class="badge out" class:del={direct}>{outLabel()}</span>
+        {direct ? t('se borra para siempre (no se puede restaurar).') : t('se mueve a la cuarentena (se puede restaurar).')}
         {t('Pulsa en otra copia para conservar esa.')}
       </p>
     </section>
@@ -286,7 +334,7 @@
             </label>
             <span class="num meta">
               {fmt(g.bytes)} × {g.files.length} ·
-              {g.on ? t('se conserva 1, {n} a la cuarentena', { n: g.files.length - 1 }) : t('no se toca nada')}
+              {g.on ? (direct ? t('se conserva 1, se borran {n}', { n: g.files.length - 1 }) : t('se conserva 1, {n} a la cuarentena', { n: g.files.length - 1 })) : t('no se toca nada')}
             </span>
           </div>
           {#each g.files as f, fi (f.path)}
@@ -295,8 +343,8 @@
               <label class="pick" title={kept ? t('Esta copia se conserva') : t('Conservar esta copia en lugar de la otra')}>
                 <input type="radio" name={'g' + gi} checked={kept} onchange={() => (g.keep = fi)} />
                 <span class="rb" aria-hidden="true"></span>
-                <span class="badge" class:keep={kept} class:out={!kept && g.on}>
-                  {kept ? t('Se conserva') : g.on ? t('A la cuarentena') : t('No se toca')}
+                <span class="badge" class:keep={kept} class:out={!kept && g.on} class:del={!kept && g.on && direct}>
+                  {kept ? t('Se conserva') : g.on ? outLabel() : t('No se toca')}
                 </span>
               </label>
               <span class="path" title={f.path}><b>{name(f.path)}</b> <small>{dir(f.path)}</small></span>
@@ -315,7 +363,7 @@
     <section class="sum">
       <span class="big num">{fmt(oldBytes)}</span>
       <span class="cap">{t('seleccionados · {a} de {b}', { a: oldPicked.length, b: old.length })}</span>
-      <button class="btn primary" disabled={!oldPicked.length || working} onclick={() => (confirming = true)}>{t('Mover a la cuarentena')}</button>
+      <button class="btn primary" class:kill={direct} disabled={!oldPicked.length || working} onclick={() => (confirming = true)}>{direct ? t('Borrar para siempre') : t('Mover a la cuarentena')}</button>
     </section>
     <ul class="old">
       {#each old as f (f.path)}
@@ -337,6 +385,16 @@
 {#if confirming}
   <div class="overlay" role="presentation" onclick={() => (confirming = false)}>
     <div class="dialog" role="dialog" aria-modal="true" aria-label={t('Confirmar')} tabindex="-1" onclick={(e) => e.stopPropagation()}>
+      {#if direct}
+        <h3>{t('¿Borrar para siempre?')}</h3>
+        <p class="warn">
+          {#if tab === 'dups'}
+            {t('{n} copias ({b}) se borrarán para siempre. De cada grupo se conserva la copia marcada «Se conserva». Esto no se puede deshacer.', { n: removeCount, b: fmt(removeBytes) })}
+          {:else}
+            {t('{n} archivos ({b}) se borrarán para siempre. Esto no se puede deshacer.', { n: oldPicked.length, b: fmt(oldBytes) })}
+          {/if}
+        </p>
+      {:else}
       <h3>{t('¿Mover a la cuarentena?')}</h3>
       <p>
         {#if tab === 'dups'}
@@ -345,9 +403,25 @@
           {t('{n} archivos ({b}) irán a la cuarentena. Puedes restaurarlos desde Cuarentena.', { n: oldPicked.length, b: fmt(oldBytes) })}
         {/if}
       </p>
+      {/if}
       <div class="row">
         <button class="btn" onclick={() => (confirming = false)}>{t('Cancelar')}</button>
-        <button class="btn primary" onclick={tab === 'dups' ? moveDuplicates : moveOld}>{t('Mover')}</button>
+        <button class="btn primary" class:kill={direct} onclick={tab === 'dups' ? moveDuplicates : moveOld}>{direct ? t('Borrar') : t('Mover')}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if askDirect}
+  <div class="overlay" role="presentation" onclick={() => (askDirect = false)}>
+    <div class="dialog" role="dialog" aria-modal="true" aria-label={t('Borrar directamente')} tabindex="-1" onclick={(e) => e.stopPropagation()}>
+      <h3>{t('¿Borrar sin cuarentena?')}</h3>
+      <p class="warn">{t('Con este ajuste, lo que elijas en Duplicados y en Grandes y antiguos se borra para siempre: no pasa por la cuarentena ni por la Papelera y no se puede restaurar.')}</p>
+      <p>{t('Úsalo para archivos muy pesados o que están en otro disco: la cuarentena está en el disco de Windows, así que mover allí archivos grandes de otra unidad copia todos sus datos y puede llenarlo. Dentro del mismo disco, mover a la cuarentena es instantáneo pero no libera espacio hasta que la vacías.')}</p>
+      <p>{t('Se siguen aplicando las mismas comprobaciones: solo se borran copias idénticas a la que se conserva, nunca carpetas ni archivos del sistema.')}</p>
+      <div class="row">
+        <button class="btn" onclick={() => (askDirect = false)}>{t('Cancelar')}</button>
+        <button class="btn primary kill" onclick={() => setDirect(true)}>{t('Entendido, activar')}</button>
       </div>
     </div>
   </div>
@@ -366,6 +440,11 @@
   .target.none { color: var(--accent); }
   .where-path { padding: 1px 6px; background: var(--paper-2); border-radius: 2px; color: var(--ink); }
   .note { margin: 6px 0 0; font-size: 12px; color: var(--ink-3); }
+  .direct { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 10px 0 0; padding: 8px 10px; border: 1px dashed var(--rule); border-radius: 2px; }
+  .direct.on { border: 1.5px solid #d62828; }
+  .warn { color: #d62828; font-weight: 600; font-size: 12.5px; }
+  .btn.primary.kill, .btn.primary.kill:hover:not(:disabled) { background: #d62828; color: #fff; }
+  .badge.out.del { border-color: #d62828; color: #d62828; font-weight: 600; }
   .rule { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 24px; margin: 6px 0 4px; }
   .rule label { display: grid; gap: 4px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
   .hint { flex: 1; min-width: 260px; margin: 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.9; }

@@ -2,7 +2,7 @@
 //! va a la cuarentena (nada se borra). Los duplicados se comprueban por contenido (SHA-256), no por nombre,
 //! y antes de mover nada se vuelven a comprobar contra el archivo que se conserva.
 
-use crate::clean::{quarantine_items, CleanReport};
+use crate::clean::{delete_files, quarantine_items, CleanReport};
 use crate::protect::Protected;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -285,6 +285,24 @@ pub struct DupSelection {
 /// Mueve a la cuarentena las copias elegidas. Cada copia se vuelve a comparar byte a byte con la que se
 /// conserva (mismo tamaño y mismo contenido) justo antes de moverla; si algo cambió desde el escaneo, se deja.
 pub fn quarantine_duplicates(sel: &[DupSelection], quarantine_dir: &Path, batch: &str) -> CleanReport {
+    let (items, errors) = verified(sel);
+    let mut rep = quarantine_items(&items, quarantine_dir, batch);
+    rep.errors.extend(errors);
+    rep
+}
+
+/// Borra para siempre las copias elegidas, sin pasar por la cuarentena (ajuste opcional, avisado en la
+/// interfaz). Mismas comprobaciones que al mover: solo se borra lo que sigue siendo idéntico a la copia
+/// que se conserva, y esa copia nunca.
+pub fn delete_duplicates(sel: &[DupSelection]) -> CleanReport {
+    let (items, errors) = verified(sel);
+    let mut rep = delete_files(&items);
+    rep.errors.extend(errors);
+    rep
+}
+
+/// Copias que siguen siendo idénticas a la que se conserva, y los motivos de las que no se tocan.
+fn verified(sel: &[DupSelection]) -> (Vec<PathBuf>, Vec<String>) {
     let mut items = Vec::new();
     let mut errors = Vec::new();
     let mut pair = (Vec::new(), Vec::new());
@@ -310,9 +328,7 @@ pub fn quarantine_duplicates(sel: &[DupSelection], quarantine_dir: &Path, batch:
             }
         }
     }
-    let mut rep = quarantine_items(&items, quarantine_dir, batch);
-    rep.errors.extend(errors);
-    rep
+    (items, errors)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -461,6 +477,22 @@ mod tests {
         let rep = quarantine_duplicates(&sel, q.path(), "71");
         assert_eq!(rep.files, 0);
         assert!(again.exists());
+    }
+
+    #[test]
+    fn direct_delete_checks_the_same_as_quarantine() {
+        let t = tempfile::tempdir().unwrap();
+        let keep = write(t.path(), "a/x.bin", b"contenido");
+        let same = write(t.path(), "b/x.bin", b"contenido");
+        let different = write(t.path(), "c/x.bin", b"OTRO CONTE");
+        let sel = [DupSelection {
+            keep: keep.to_string_lossy().into(),
+            remove: vec![same.to_string_lossy().into(), different.to_string_lossy().into(), keep.to_string_lossy().into()],
+        }];
+        let rep = delete_duplicates(&sel);
+        assert_eq!((rep.files, rep.bytes), (1, 9));
+        assert!(keep.exists() && different.exists() && !same.exists());
+        assert_eq!(rep.errors.len(), 2, "{:?}", rep.errors);
     }
 
     #[test]
