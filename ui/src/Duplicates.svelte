@@ -3,6 +3,7 @@
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
+  import { open } from '@tauri-apps/plugin-dialog';
   import { fmt } from './format.js';
   import { i18n } from './i18n.svelte.js';
 
@@ -11,6 +12,9 @@
   let tab = $state('dups'); // dups | old
   let folders = $state([]);
   let chosen = $state({});
+  let extra = $state([]); // carpetas elegidas a mano
+  let keepRule = $state('oldest'); // oldest | newest | shortest
+  let scanned = $state([]); // rutas que se recorrieron en la última búsqueda
   let minMb = $state(10);
   let days = $state(365);
   let phase = $state('idle'); // idle | scanning | done
@@ -31,7 +35,11 @@
   let removeBytes = $derived(active.reduce((a, g) => a + g.bytes * (g.files.length - 1), 0));
   let oldPicked = $derived(old.filter((f) => picked[f.path]));
   let oldBytes = $derived(oldPicked.reduce((a, f) => a + f.bytes, 0));
-  let anyFolder = $derived(Object.values(chosen).some(Boolean));
+  let userFolders = $derived(folders.filter((f) => f.kind !== 'drive'));
+  let drives = $derived(folders.filter((f) => f.kind === 'drive'));
+  let targets = $derived([...folders.filter((f) => chosen[f.id]).map((f) => f.path), ...extra]);
+  let anyFolder = $derived(targets.length > 0);
+  let anyDrive = $derived(drives.some((d) => chosen[d.id]));
 
   async function init() {
     try {
@@ -44,14 +52,41 @@
 
   const ids = () => Object.keys(chosen).filter((k) => chosen[k]);
 
+  async function addFolder() {
+    try {
+      const path = await open({ directory: true, multiple: false, title: t('Elige una carpeta donde buscar') });
+      if (typeof path === 'string' && !extra.includes(path)) extra = [...extra, path];
+    } catch (e) {
+      notify(t('No se pudo abrir el selector de carpetas: ') + e);
+    }
+  }
+
+  const removeFolder = (path) => (extra = extra.filter((p) => p !== path));
+
+  // Qué copia de cada grupo se conserva según la regla elegida.
+  function pickKeep(files) {
+    let best = 0;
+    files.forEach((f, i) => {
+      const b = files[best];
+      if (keepRule === 'oldest' ? f.modified < b.modified : keepRule === 'newest' ? f.modified > b.modified : f.path.length < b.path.length) best = i;
+    });
+    return best;
+  }
+
+  function applyRule() {
+    for (const g of groups) g.keep = pickKeep(g.files);
+  }
+
   async function search() {
     phase = 'scanning';
+    scanned = targets;
     try {
       if (tab === 'dups') {
-        report = await invoke('dup_scan', { folders: ids(), minMb });
-        groups = report.groups.map((g) => ({ ...g, keep: 0, on: true }));
+        report = await invoke('dup_scan', { folders: ids(), extra: [...extra], minMb });
+        scanned = report.roots;
+        groups = report.groups.map((g) => ({ ...g, keep: pickKeep(g.files), on: true }));
       } else {
-        old = await invoke('old_scan', { folders: ids(), minMb, days });
+        old = await invoke('old_scan', { folders: ids(), extra: [...extra], minMb, days });
         picked = {};
       }
       phase = 'done';
@@ -130,14 +165,39 @@
   </div>
 
   <section class="setup">
-    <div class="folders" role="group" aria-label={t('Carpetas a revisar')}>
-      {#each folders as f (f.id)}
-        <label class="chk">
-          <input type="checkbox" bind:checked={chosen[f.id]} />
-          <span class="box" aria-hidden="true"></span>
-          <span>{t(f.name)}</span>
-        </label>
-      {/each}
+    <div class="where">
+      <div class="folders" role="group" aria-label={t('Carpetas a revisar')}>
+        <span class="label grp">{t('Carpetas')}</span>
+        {#each userFolders as f (f.id)}
+          <label class="chk">
+            <input type="checkbox" bind:checked={chosen[f.id]} />
+            <span class="box" aria-hidden="true"></span>
+            <span>{t(f.name)}</span>
+          </label>
+        {/each}
+      </div>
+      {#if drives.length}
+        <div class="folders" role="group" aria-label={t('Unidades a revisar')}>
+          <span class="label grp">{t('Unidades')}</span>
+          {#each drives as d (d.id)}
+            <label class="chk">
+              <input type="checkbox" bind:checked={chosen[d.id]} />
+              <span class="box" aria-hidden="true"></span>
+              <span>{t('Disco')} {d.path.slice(0, 2)}</span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+      <div class="folders" role="group" aria-label={t('Otras carpetas')}>
+        <span class="label grp">{t('Otras')}</span>
+        {#each extra as p (p)}
+          <span class="extra" title={p}>
+            <span class="num">{p}</span>
+            <button class="link" aria-label={t('Quitar')} onclick={() => removeFolder(p)}>×</button>
+          </span>
+        {/each}
+        <button class="link" onclick={addFolder}>{t('+ Elegir carpeta…')}</button>
+      </div>
     </div>
     <div class="opts">
       <label>
@@ -169,6 +229,24 @@
       </button>
     </div>
   </section>
+
+  <p class="target" class:none={!anyFolder}>
+    {#if phase === 'scanning'}
+      <span class="label">{t('Buscando en')}</span>
+    {:else if phase === 'done'}
+      <span class="label">{t('Resultados de')}</span>
+    {:else}
+      <span class="label">{t('Se buscará en')}</span>
+    {/if}
+    {#if (phase === 'idle' ? targets : scanned).length}
+      {#each phase === 'idle' ? targets : scanned as p (p)}<span class="num where-path">{p}</span>{/each}
+    {:else}
+      <span>{t('Elige al menos una carpeta o unidad.')}</span>
+    {/if}
+  </p>
+  {#if anyDrive && phase !== 'done'}
+    <p class="note">{t('Revisar una unidad entera puede tardar varios minutos. Windows, Archivos de programa y ProgramData nunca se revisan.')}</p>
+  {/if}
 </div>
 
 {#if phase === 'scanning'}
@@ -182,6 +260,21 @@
       <span class="cap">{t('recuperables · {g} grupos · {c} copias a quitar', { g: groups.length, c: removeCount })}</span>
       <button class="btn primary" disabled={!removeCount || working} onclick={() => (confirming = true)}>{t('Mover a la cuarentena')}</button>
     </section>
+    <section class="rule">
+      <label>
+        {t('En cada grupo conservar')}
+        <select bind:value={keepRule} onchange={applyRule}>
+          <option value="oldest">{t('la copia más antigua')}</option>
+          <option value="newest">{t('la copia más reciente')}</option>
+          <option value="shortest">{t('la de ruta más corta')}</option>
+        </select>
+      </label>
+      <p class="hint">
+        <span class="badge keep">{t('Se conserva')}</span> {t('se queda donde está.')}
+        <span class="badge out">{t('A la cuarentena')}</span> {t('se mueve a la cuarentena (se puede restaurar).')}
+        {t('Pulsa en otra copia para conservar esa.')}
+      </p>
+    </section>
     <ul class="groups">
       {#each groups as g, gi (gi)}
         <li class:off={!g.on}>
@@ -191,16 +284,22 @@
               <span class="box" aria-hidden="true"></span>
               <b>{name(g.files[0].path)}</b>
             </label>
-            <span class="num meta">{fmt(g.bytes)} × {g.files.length}</span>
+            <span class="num meta">
+              {fmt(g.bytes)} × {g.files.length} ·
+              {g.on ? t('se conserva 1, {n} a la cuarentena', { n: g.files.length - 1 }) : t('no se toca nada')}
+            </span>
           </div>
           {#each g.files as f, fi (f.path)}
-            <div class="file" class:keep={g.keep === fi}>
-              <label class="pick">
-                <input type="radio" name={'g' + gi} checked={g.keep === fi} onchange={() => (g.keep = fi)} />
+            {@const kept = g.keep === fi}
+            <div class="file" class:keep={kept} class:out={!kept && g.on}>
+              <label class="pick" title={kept ? t('Esta copia se conserva') : t('Conservar esta copia en lugar de la otra')}>
+                <input type="radio" name={'g' + gi} checked={kept} onchange={() => (g.keep = fi)} />
                 <span class="rb" aria-hidden="true"></span>
-                <span class="tag label">{g.keep === fi ? t('Se queda') : t('Se quita')}</span>
+                <span class="badge" class:keep={kept} class:out={!kept && g.on}>
+                  {kept ? t('Se conserva') : g.on ? t('A la cuarentena') : t('No se toca')}
+                </span>
               </label>
-              <span class="path" title={f.path}>{f.path}</span>
+              <span class="path" title={f.path}><b>{name(f.path)}</b> <small>{dir(f.path)}</small></span>
               <span class="num dt">{DAY(f.modified)}</span>
               <button class="link" onclick={() => reveal(f.path)}>{t('Mostrar')}</button>
             </div>
@@ -241,7 +340,7 @@
       <h3>{t('¿Mover a la cuarentena?')}</h3>
       <p>
         {#if tab === 'dups'}
-          {t('{n} copias ({b}) irán a la cuarentena. De cada grupo se conserva la copia marcada «Se queda». Puedes restaurarlas desde Cuarentena.', { n: removeCount, b: fmt(removeBytes) })}
+          {t('{n} copias ({b}) irán a la cuarentena. De cada grupo se conserva la copia marcada «Se conserva». Puedes restaurarlas desde Cuarentena.', { n: removeCount, b: fmt(removeBytes) })}
         {:else}
           {t('{n} archivos ({b}) irán a la cuarentena. Puedes restaurarlos desde Cuarentena.', { n: oldPicked.length, b: fmt(oldBytes) })}
         {/if}
@@ -257,7 +356,19 @@
 <style>
   .tabs { margin-top: 22px; }
   .setup { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; margin: 18px 0 8px; }
-  .folders { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .where { display: grid; gap: 10px; min-width: 0; }
+  .folders { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+  .grp { width: 72px; flex: none; font-size: 10px; color: var(--ink-3); }
+  .extra { display: inline-flex; align-items: center; gap: 6px; max-width: 340px; padding: 3px 4px 3px 8px; border: 1px solid var(--rule); border-radius: 2px; font-size: 12px; }
+  .extra .num { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .target { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 6px 0 0; font-size: 12.5px; color: var(--ink-2); }
+  .target .label { font-size: 10px; color: var(--ink-3); }
+  .target.none { color: var(--accent); }
+  .where-path { padding: 1px 6px; background: var(--paper-2); border-radius: 2px; color: var(--ink); }
+  .note { margin: 6px 0 0; font-size: 12px; color: var(--ink-3); }
+  .rule { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 24px; margin: 6px 0 4px; }
+  .rule label { display: grid; gap: 4px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+  .hint { flex: 1; min-width: 260px; margin: 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.9; }
   .opts { display: flex; align-items: flex-end; gap: 16px; }
   .opts label { display: grid; gap: 4px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
   select { border: 1px solid var(--ink); border-radius: 2px; background: var(--paper); color: var(--ink); padding: 8px 10px; font-family: var(--mono); font-size: 12px; }
@@ -280,12 +391,18 @@
   .gh b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meta { color: var(--ink-3); font-size: 12px; flex: none; }
   .file { display: flex; align-items: center; gap: 14px; padding: 7px 2px; border-top: 1px solid var(--rule); font-size: 12.5px; }
-  .pick { flex: none; display: flex; align-items: center; gap: 9px; width: 104px; cursor: pointer; }
+  .pick { flex: none; display: flex; align-items: center; gap: 9px; width: 150px; cursor: pointer; }
   .rb { flex: none; position: relative; width: 14px; height: 14px; border: 1.5px solid var(--ink); border-radius: 50%; }
   input:checked + .rb { background: var(--accent); box-shadow: inset 0 0 0 2px var(--paper); }
-  .tag { font-size: 10px; }
-  .file.keep .tag { color: var(--accent); font-weight: 600; }
-  .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); direction: rtl; text-align: left; }
+  .badge { display: inline-block; padding: 2px 6px; border: 1px solid var(--rule); border-radius: 2px; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); white-space: nowrap; }
+  .badge.keep { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .badge.out { border-color: var(--ink-3); color: var(--ink-2); }
+  .file.keep { box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
+  .file.out .path { opacity: 0.65; }
+  .file.out .path b { text-decoration: line-through; text-decoration-color: var(--ink-3); }
+  .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .path b { font-weight: 600; color: var(--ink); }
+  .path small { font-size: 12px; color: var(--ink-3); }
   .dt { flex: none; color: var(--ink-3); font-size: 12px; width: 96px; text-align: right; }
 
   .old > li { display: flex; align-items: center; gap: 14px; padding: 10px 2px; border-bottom: 1px solid var(--rule); animation: line 0.2s both; }
