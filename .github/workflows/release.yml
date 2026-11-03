@@ -1,6 +1,8 @@
 name: Release
 # Se ejecuta al publicar una versión en GitHub (Releases → Draft a new release → Publish).
 # Compila el exe portable, lo firma si hay SignPath configurado y lo adjunta con su SHA256.
+# Si existe el secreto TAURI_SIGNING_PRIVATE_KEY adjunta también la firma `.sig` que la app
+# comprueba antes de actualizarse sola (ver docs/RELEASING.md).
 on:
   release:
     types: [published]
@@ -21,16 +23,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # La versión del exe sale de la etiqueta (v1.2.3 → 1.2.3). La app la usa para saber si hay
+      # una versión más nueva: si no coincidieran, se ofrecería actualizar una y otra vez.
+      - name: Fijar la versión del programa a la de la etiqueta
+        shell: pwsh
+        run: |
+          $v = $env:TAG.TrimStart('v')
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { Write-Output "::error::La etiqueta debe ser vX.Y.Z (por ejemplo v0.3.0), no $env:TAG"; exit 1 }
+          foreach ($f in 'src-tauri/Cargo.toml', 'crates/core/Cargo.toml') {
+            $text = Get-Content $f -Raw
+            $text = ([regex]'(?m)^version\s*=\s*"[^"]*"').Replace($text, "version = `"$v`"", 1)
+            Set-Content $f $text -NoNewline
+          }
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw
+          $conf = ([regex]'"version":\s*"[^"]*"').Replace($conf, "`"version`": `"$v`"", 1)
+          Set-Content src-tauri/tauri.conf.json $conf -NoNewline
+          Write-Output "Versión del programa: $v"
       - run: npm install
         working-directory: ui
       - run: npm run build
         working-directory: ui
       - run: cargo test -p wincleaner-core
-      - name: Avisar si la versión de la etiqueta no coincide con la del programa
-        shell: pwsh
-        run: |
-          $v = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version\s*=\s*"(.+)"').Matches[0].Groups[1].Value
-          if ($env:TAG.TrimStart('v') -ne $v) { Write-Output "::warning::La etiqueta $env:TAG no coincide con la versión del programa ($v). El exe seguirá mostrando $v." }
       - name: Compilar ejecutable portable
         run: npx --yes @tauri-apps/cli@2 build --no-bundle
       - name: Preparar archivo sin firmar
@@ -68,10 +81,27 @@ jobs:
           $signed = if ($src -like 'signed*') { 'firmado' } else { 'sin firmar' }
           "### Archivo`n- ``$name`` ($signed)`n- SHA256: ``$hash``" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
           Add-Content $env:GITHUB_ENV "ASSET=$name`nHASH=$hash`nSIGNED=$signed"
+      # Firma de actualización (minisign/Ed25519). Va después de SignPath porque firma los bytes
+      # finales. La clave pública correspondiente está en crates/core/updater.pub.
+      - name: Firmar para las actualizaciones automáticas
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Output "::warning::Falta el secreto TAURI_SIGNING_PRIVATE_KEY: la app avisará de esta versión pero no podrá instalarla sola."
+            exit 0
+          }
+          npx --yes @tauri-apps/cli@2 signer sign $env:ASSET
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$env:ASSET.sig")) { Write-Output "::error::No se pudo firmar $env:ASSET"; exit 1 }
+          Add-Content $env:GITHUB_ENV "UPDATE_SIG=$env:ASSET.sig"
       - name: Adjuntar a la versión
         shell: pwsh
         run: |
-          gh release upload $env:TAG $env:ASSET SHA256SUMS.txt --clobber
+          $files = @($env:ASSET, 'SHA256SUMS.txt')
+          if ($env:UPDATE_SIG) { $files += $env:UPDATE_SIG }
+          gh release upload $env:TAG @files --clobber
           $body = gh release view $env:TAG --json body --jq .body
           $extra = "`n`n---`n**Descarga:** ``$env:ASSET`` ($env:SIGNED)`n**SHA256:** ``$env:HASH```n`nPara comprobarlo en PowerShell: ``(Get-FileHash .\$env:ASSET).Hash`` debe dar el mismo valor."
           gh release edit $env:TAG --notes "$body$extra"

@@ -20,6 +20,7 @@ mod uninstall;
 mod updates;
 mod rules;
 mod schedule;
+mod selfupdate;
 
 pub use clean::{
     clean_rule, list_batches, quarantine_items, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
@@ -50,6 +51,7 @@ pub use schedule::{
     last_run as schedule_last_run, load as schedule_load, run_now as schedule_run_now, run_scheduled, schedule_save, task_exists as schedule_task_exists,
     AutoMode, Freq, LastRun, Schedule,
 };
+pub use selfupdate::{app_update_check, app_update_install, cleanup_after_update, AppUpdate, REPO as UPDATE_REPO};
 pub use updates::{update_apply, updates_list, Update};
 pub use power::{power_add_ultimate, power_plans, power_set, Plan};
 pub use recycle::{recycle_empty, recycle_info, RecycleInfo};

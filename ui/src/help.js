@@ -127,6 +127,10 @@ export const H = {
     risk: 'care',
     text: 'Usa winget, el gestor de paquetes oficial de Windows, para buscar versiones nuevas de tus programas. WinCleaner no descarga nada por su cuenta: es winget quien baja e instala, con el instalador del propio fabricante. Una actualización puede cambiar el programa o pedir permisos de administrador; no se puede deshacer desde aquí, así que revisa la lista y cierra antes los programas que vayas a actualizar.',
   },
+  selfUpdate: {
+    risk: 'reversible',
+    text: 'WinCleaner pregunta a GitHub si hay una versión nueva al abrirse (puedes apagarlo). Al actualizar descarga el exe nuevo y comprueba su firma digital con una clave que va dentro del programa: si la firma no coincide, no instala nada. Después pone el exe nuevo en el mismo sitio que el actual y se reinicia; no hay instalador ni se toca nada más de Windows. La versión anterior queda como «.old» hasta que se abre la nueva, y si algo falla a medio camino se deja el exe original.',
+  },
   powerInfo: {
     risk: 'reversible',
     text: 'El plan de energía decide cuánto rinde el equipo y cuánta batería gasta. Cambiar de plan es inmediato y siempre puedes volver al anterior desde esta misma lista. «Equilibrado» es lo normal; los planes de más rendimiento gastan más batería y calientan más.',

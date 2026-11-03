@@ -3,6 +3,7 @@
   import Help from './Help.svelte';
   import { H } from './help.js';
   import { invoke } from '@tauri-apps/api/core';
+  import { selfUpdate, setAuto, checkSelfUpdate, installSelfUpdate, openReleasePage } from './selfupdate.svelte.js';
 
   let { notify } = $props();
 
@@ -50,6 +51,11 @@
   }
 
   load();
+  if (!selfUpdate.info && !selfUpdate.checking) checkSelfUpdate();
+
+  let su = $derived(selfUpdate.info);
+  // Las notas de GitHub sin la coletilla de descarga que añade el workflow.
+  let notes = $derived((su?.notes || '').split('\n---')[0].trim());
 </script>
 
 <div class="sticky">
@@ -66,6 +72,40 @@
     <button class="link" disabled={working || loading} onclick={load}>{t('Buscar de nuevo')}</button>
   </section>
 </div>
+
+<section class="self" aria-label="WinCleaner">
+  <div class="self-head">
+    <span class="txt">
+      <b>WinCleaner</b>
+      <small class="num">
+        {#if selfUpdate.checking}{t('Buscando versión nueva…')}
+        {:else if su?.newer}{su.current} → {su.latest}
+        {:else if su}{t('Versión {v} · Es la última', { v: su.current })}
+        {:else}{t('No se pudo consultar GitHub')}{/if}
+      </small>
+    </span>
+    {#if su?.newer && su.installable}
+      <button class="btn primary" disabled={selfUpdate.installing} onclick={installSelfUpdate}>
+        {selfUpdate.installing ? t('Descargando…') : t('Actualizar y reiniciar')}
+      </button>
+    {:else if su?.newer}
+      <button class="btn primary" onclick={openReleasePage}>{t('Descargar')}</button>
+    {:else}
+      <button class="link" disabled={selfUpdate.checking} onclick={checkSelfUpdate}>{t('Buscar ahora')}</button>
+    {/if}
+    <Help text={H.selfUpdate.text} risk={H.selfUpdate.risk} label={t('Cómo se actualiza WinCleaner')} />
+  </div>
+  {#if su?.newer && notes}<p class="notes">{notes}</p>{/if}
+  {#if su?.newer && !su.installable}<p class="note">{t('Esta versión no trae firma de actualización, así que no se instala sola. Descárgala desde GitHub y sustituye el exe.')}</p>{/if}
+  {#if selfUpdate.error}<p class="note">{selfUpdate.error}</p>{/if}
+  <label class="row auto">
+    <input type="checkbox" checked={selfUpdate.auto} onchange={(e) => setAuto(e.currentTarget.checked)} />
+    <span class="box" aria-hidden="true"></span>
+    <span>{t('Buscar versiones nuevas al abrir WinCleaner')}</span>
+  </label>
+</section>
+
+<p class="label sub">{t('Tus programas')}</p>
 
 {#if loading}
   <p class="empty num">···</p>
@@ -110,5 +150,11 @@
   .st { width: 80px; text-align: right; }
   .st.ok { color: var(--accent); }
   .st.err { color: var(--danger, #c0392b); }
+  .self { margin-top: 22px; padding: 14px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line, rgba(0,0,0,.12)); }
+  .self-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .self-head .txt { flex: 1; min-width: 160px; }
+  .notes { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); white-space: pre-line; max-height: 140px; overflow-y: auto; }
+  .auto { margin-top: 12px; flex: none; font-size: 13px; color: var(--ink-2); }
+  .sub { margin-top: 26px; }
   .note { margin: 18px 0 0; padding: 10px 12px; border-left: 3px solid var(--accent); font-size: 13px; color: var(--ink-2); }
 </style>
