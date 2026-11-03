@@ -23,7 +23,7 @@ mod schedule;
 mod selfupdate;
 
 pub use clean::{
-    clean_rule, list_batches, quarantine_items, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
+    clean_rule, delete_files, list_batches, quarantine_items, purge_batch, restore_batch, scan_rule, BatchInfo, CleanReport, Mode,
     ScanResult,
 };
 pub use background::low_priority;
@@ -43,7 +43,7 @@ pub use uninstall::{
 pub use tweaks::{tweak_set, tweaks_list, TweakInfo};
 pub use protect::{is_protected, Protected};
 pub use duplicates::{
-    find_duplicates, find_large_old, folders as user_folders, quarantine_duplicates, DupFile, DupGroup, DupReport,
+    find_duplicates, find_large_old, folders as user_folders, delete_duplicates, quarantine_duplicates, DupFile, DupGroup, DupReport,
     DupSelection, Folder, OldFile,
 };
 pub use services::{service_set, services_list, ServiceInfo};
