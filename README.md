@@ -81,6 +81,8 @@ Lists your programs with their icon, install date, last use and size. You can se
 
 Checks your programs for new versions with winget, the Windows package manager, and installs the ones you pick.
 
+WinCleaner keeps itself up to date too. When a new release is published on GitHub it lets you know, downloads the new exe, checks its digital signature and swaps it in place with one click. There's still no installer, and you can turn the check off.
+
 <img src="docs/images/en/updates.png" alt="Updates" width="100%">
 
 ### Bloatware

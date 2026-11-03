@@ -9,6 +9,11 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 serde_json = "1"
 sha2 = "0.10"
+# Actualizaciones propias: HTTPS con el TLS de Windows (schannel) y firma Ed25519 (minisign).
+ureq = { version = "2", default-features = false, features = ["native-tls"] }
+native-tls = "0.2"
+minisign-verify = "0.2"
+base64 = "0.22"
 sysinfo = { version = "0.33", default-features = false, features = ["system", "disk", "component", "network"] }
 
 [dev-dependencies]

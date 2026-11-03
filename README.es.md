@@ -79,6 +79,8 @@ Lista de programas con icono, fecha de instalación, **último uso** y tamaño, 
 
 Busca versiones nuevas de tus programas con **winget**, el gestor oficial de Windows, y las instala por ti.
 
+WinCleaner también se mantiene al día solo: cuando se publica una versión nueva en GitHub te avisa, descarga el exe nuevo, **comprueba su firma digital** y lo cambia en su sitio con un clic. Sigue sin instalador, y la comprobación se puede apagar.
+
 <img src="docs/images/actualizaciones.png" alt="Actualizaciones" width="100%">
 
 ### Aplicaciones preinstaladas (debloat)

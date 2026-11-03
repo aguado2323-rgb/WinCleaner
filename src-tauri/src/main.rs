@@ -11,6 +11,7 @@ use wincleaner_core::{
     schedule_last_run, schedule_load, schedule_run_now, run_scheduled, schedule_save, schedule_task_exists, LastRun, Schedule,
     delete_duplicates, delete_files, find_duplicates, find_large_old, quarantine_duplicates, user_folders, DupReport, DupSelection, Folder, OldFile, service_set, services_list, ServiceInfo, scan_dir, scan_rule, tweak_set, tweaks_list, TweakInfo, startup_list, startup_set_enabled, BatchInfo, CleanReport, DirReport, Mode,
     update_apply, updates_list, Update,
+    app_update_check, app_update_install, cleanup_after_update, AppUpdate,
     power_add_ultimate, power_plans, power_set, Plan,
     recycle_empty, recycle_info, RecycleInfo,
     history_record, history_report, HistoryEvent, HistoryKind, UsageReport,
@@ -458,6 +459,32 @@ async fn updates_apply(id: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || update_apply(&id)).await.map_err(|e| e.to_string())?
 }
 
+/// ¿Hay una versión nueva de WinCleaner en GitHub? Solo lectura.
+#[tauri::command]
+async fn self_update_check() -> Result<AppUpdate, String> {
+    tauri::async_runtime::spawn_blocking(app_update_check).await.map_err(|e| e.to_string())?
+}
+
+/// Descarga la versión nueva, comprueba su firma, la pone en lugar de este exe y la abre.
+#[tauri::command]
+async fn self_update_install(app: tauri::AppHandle) -> Result<(), String> {
+    let exe = tauri::async_runtime::spawn_blocking(app_update_install).await.map_err(|e| e.to_string())??;
+    std::process::Command::new(&exe).spawn().map_err(|e| format!("versión nueva instalada; ábrela de nuevo a mano ({e})"))?;
+    app.exit(0);
+    Ok(())
+}
+
+/// Abre en el navegador la página de la última versión (dirección fija, no viene de la interfaz).
+#[tauri::command]
+fn self_update_page() -> Result<(), String> {
+    #[cfg(windows)]
+    std::process::Command::new("explorer")
+        .arg(format!("https://github.com/{}/releases/latest", wincleaner_core::UPDATE_REPO))
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 async fn power_list() -> Result<Vec<Plan>, String> {
     tauri::async_runtime::spawn_blocking(power_plans).await.map_err(|e| e.to_string())?
@@ -529,10 +556,12 @@ fn main() {
         low_priority(|| run_scheduled(&data_dir(), &quarantine_dir(), now_secs()));
         return;
     }
+    // Restos de una actualización anterior (el exe viejo puede tardar un momento en cerrarse).
+    std::thread::spawn(cleanup_after_update);
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(MonitorState::default())
-        .invoke_handler(tauri::generate_handler![system_lang, list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, dup_delete, files_delete, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now, monitor_specs, monitor_drives, monitor_sample])
+        .invoke_handler(tauri::generate_handler![system_lang, list_rules, scan, clean, restore, quarantine, purge, open_quarantine, disk_roots, analyze, space_quarantine, dup_folders, dup_scan, dup_quarantine, dup_delete, files_delete, old_scan, reveal, startup_items, startup_set, restore_state, restore_create, restore_open, restart_as_admin, debloat_list, debloat_apply, tweaks_state, tweak_apply, services_state, service_apply, app_is_admin, restart_explorer, programs_list, programs_icons, program_uninstall, leftovers_find, leftovers_remove, registry_restore, usage_report, recycle_state, recycle_clear, updates_scan, updates_apply, self_update_check, self_update_install, self_update_page, power_list, power_activate, power_ultimate, schedule_state, schedule_apply, schedule_now, monitor_specs, monitor_drives, monitor_sample])
         .run(tauri::generate_context!())
         .expect("error al iniciar WinCleaner");
 }

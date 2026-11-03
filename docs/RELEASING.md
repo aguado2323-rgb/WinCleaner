@@ -1,8 +1,8 @@
 # Publicar una versión
 
-1. Sube la versión en `src-tauri/Cargo.toml` y `src-tauri/tauri.conf.json` (por ejemplo `0.2.0`) y fusiona el cambio en `main`.
-2. En GitHub: **Releases → Draft a new release**, crea la etiqueta `v0.2.0` sobre `main`, escribe las notas y pulsa **Publish release**.
-3. La acción **Release** compila el exe, lo adjunta como `WinCleaner-v0.2.0-portable.exe` junto a `SHA256SUMS.txt` y añade el SHA256 a las notas. Tarda unos 5 minutos.
+1. En GitHub: **Releases → Draft a new release**, crea la etiqueta `v0.2.0` sobre `main`, escribe las notas y pulsa **Publish release**.
+2. La acción **Release** pone al programa la versión de la etiqueta (la etiqueta tiene que ser `vX.Y.Z`), compila el exe, lo adjunta como `WinCleaner-v0.2.0-portable.exe` junto a `SHA256SUMS.txt` y su firma `.sig`, y añade el SHA256 a las notas. Tarda unos 5 minutos.
+3. Las copias de WinCleaner que ya tenga la gente verán la versión nueva al abrirse (sección **Actualizaciones**) y podrán instalarla con un clic.
 
 Comprobar una descarga en PowerShell:
 
@@ -11,6 +11,23 @@ Comprobar una descarga en PowerShell:
 ```
 
 Debe coincidir con el SHA256 de las notas.
+
+## Firma de las actualizaciones automáticas
+
+WinCleaner se actualiza solo, sin instalador: descarga el exe nuevo de la última versión de GitHub, comprueba su firma y lo pone en lugar del actual. La firma es Ed25519 (formato minisign, el mismo de Tauri) y no tiene nada que ver con la de SignPath:
+
+- La **clave pública** está en `crates/core/updater.pub` y va dentro del exe.
+- La **clave privada** está solo en el secreto de GitHub `TAURI_SIGNING_PRIVATE_KEY` (y su contraseña, si tiene, en `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`).
+- El paso «Firmar para las actualizaciones automáticas» firma el exe final y sube `WinCleaner-vX.Y.Z-portable.exe.sig`.
+- La app rechaza la descarga si la firma no coincide o si es de otro archivo. Si una versión sale sin `.sig`, la app avisa pero solo ofrece abrir la página de descarga.
+
+Crear las claves (una sola vez, necesita Node.js):
+
+```powershell
+npx @tauri-apps/cli@2 signer generate -w wincleaner-update.key
+```
+
+Copia el contenido de `wincleaner-update.key` al secreto `TAURI_SIGNING_PRIVATE_KEY` y el de `wincleaner-update.key.pub` a `crates/core/updater.pub`. Guarda la clave privada en un sitio seguro: si se pierde, las copias ya instaladas no podrán actualizarse solas y habrá que descargar la siguiente versión a mano.
 
 ## Firma de código (opcional, gratis para código abierto)
 

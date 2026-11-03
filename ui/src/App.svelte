@@ -17,6 +17,7 @@
   import Schedule from './Schedule.svelte';
   import Monitor from './Monitor.svelte';
   import { i18n, followSystem } from './i18n.svelte.js';
+  import { selfUpdate, checkSelfUpdate } from './selfupdate.svelte.js';
 
   followSystem(invoke);
 
@@ -123,6 +124,16 @@
   };
 
   refreshQuarantine();
+
+  // Busca una versión nueva de WinCleaner poco después de abrir (si no se ha apagado).
+  if (selfUpdate.auto) {
+    setTimeout(async () => {
+      const u = await checkSelfUpdate();
+      if (u?.newer && view !== 'updates') {
+        notify(t('Hay una versión nueva de WinCleaner: {v}', { v: u.latest }), { label: t('Ver'), run: () => go('updates') });
+      }
+    }, 4000);
+  }
 </script>
 
 <div class="shell">
@@ -160,6 +171,7 @@
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
           <span class="t">{t(name)}</span>
           {#if id === 'quarantine' && q.batches.length}<span class="c">{q.batches.length}</span>{/if}
+          {#if id === 'updates' && selfUpdate.info?.newer}<span class="c" title={t('Versión nueva de WinCleaner')}>1</span>{/if}
         </button>
       {/each}
     </nav>
