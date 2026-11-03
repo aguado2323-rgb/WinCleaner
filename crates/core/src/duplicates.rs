@@ -2,11 +2,11 @@
 //! va a la cuarentena (nada se borra). Los duplicados se comprueban por contenido (SHA-256), no por nombre,
 //! y antes de mover nada se vuelven a comprobar contra el archivo que se conserva.
 
-use crate::clean::{quarantine_items, CleanReport};
+use crate::clean::{delete_files, quarantine_items, CleanReport};
 use crate::protect::Protected;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -23,29 +23,88 @@ pub const FOLDERS: &[(&str, &str, &str)] = &[
 ];
 
 /// Carpetas que no aportan nada (copias de librerías, historiales) o que no se deben revisar.
-const SKIP_DIRS: &[&str] = &["node_modules", ".git", "appdata", "$recycle.bin", "system volume information"];
+const SKIP_DIRS: &[&str] = &[
+    "node_modules", ".git", "appdata", "$recycle.bin", "system volume information", "windows.old", "$windows.~bt", "$windows.~ws",
+    "$winreagent", "msocache", "recovery", "windowsapps",
+];
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Folder {
     pub id: String,
     pub name: String,
     pub path: String,
+    /// `folder` (carpeta del usuario) o `drive` (unidad entera).
+    pub kind: String,
 }
 
-/// Carpetas del usuario que existen en este equipo.
+/// Carpetas del usuario y unidades de disco que existen en este equipo.
 pub fn folders() -> Vec<Folder> {
-    let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).map(PathBuf::from) else {
-        return Vec::new();
-    };
-    FOLDERS
+    let mut out = Vec::new();
+    if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).map(PathBuf::from) {
+        out.extend(
+            FOLDERS
+                .iter()
+                .map(|(id, name, dir)| Folder {
+                    id: (*id).into(),
+                    name: (*name).into(),
+                    path: home.join(dir).to_string_lossy().into_owned(),
+                    kind: "folder".into(),
+                })
+                .filter(|f| Path::new(&f.path).is_dir()),
+        );
+    }
+    for d in crate::disk::drives() {
+        let letter = d.trim_end_matches('\\').to_string();
+        out.push(Folder { id: format!("drive:{letter}"), name: format!("Disco {letter}"), path: d, kind: "drive".into() });
+    }
+    out
+}
+
+/// Carpetas que nunca se recorren al buscar, aunque se elija la unidad entera: el propio Windows y los
+/// programas instalados. Quitar una «copia» de una DLL de un programa lo podría romper.
+fn system_trees() -> Vec<PathBuf> {
+    ["SystemRoot", "WINDIR", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "ProgramData"]
         .iter()
-        .map(|(id, name, dir)| Folder { id: (*id).into(), name: (*name).into(), path: home.join(dir).to_string_lossy().into_owned() })
-        .filter(|f| Path::new(&f.path).is_dir())
+        .filter_map(std::env::var_os)
+        .map(PathBuf::from)
         .collect()
 }
 
-fn roots_for(ids: &[String]) -> Vec<PathBuf> {
-    folders().into_iter().filter(|f| ids.contains(&f.id)).map(|f| PathBuf::from(f.path)).collect()
+fn key(p: &Path) -> String {
+    let s = p.to_string_lossy().replace('\\', "/").to_lowercase();
+    format!("{}/", s.trim_end_matches('/'))
+}
+
+fn inside(p: &Path, root: &Path) -> bool {
+    key(p).starts_with(&key(root))
+}
+
+/// Raíces a recorrer: las carpetas y unidades elegidas por id más las carpetas que la persona eligió a mano.
+/// Una carpeta a mano tiene que existir, ser absoluta y no estar dentro de Windows ni de los programas.
+/// Si una raíz está dentro de otra elegida (Descargas dentro de `C:\`), se quita para no contar
+/// cada archivo dos veces y tomarlo por un duplicado de sí mismo.
+fn roots_for(ids: &[String], extra: &[String]) -> Vec<PathBuf> {
+    let sys = system_trees();
+    let mut roots: Vec<PathBuf> = folders().into_iter().filter(|f| ids.contains(&f.id)).map(|f| PathBuf::from(f.path)).collect();
+    for e in extra {
+        let p = PathBuf::from(e);
+        let bad = p.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir));
+        if p.is_absolute() && !bad && p.is_dir() && !sys.iter().any(|t| inside(&p, t)) {
+            roots.push(p);
+        }
+    }
+    dedupe_roots(roots)
+}
+
+fn dedupe_roots(mut roots: Vec<PathBuf>) -> Vec<PathBuf> {
+    roots.sort_by_key(|r| key(r).len());
+    let mut out: Vec<PathBuf> = Vec::new();
+    for r in roots {
+        if !out.iter().any(|o| inside(&r, o)) {
+            out.push(r);
+        }
+    }
+    out
 }
 
 fn mtime(meta: &fs::Metadata) -> u64 {
@@ -53,7 +112,7 @@ fn mtime(meta: &fs::Metadata) -> u64 {
 }
 
 /// Recorre las carpetas sin seguir enlaces simbólicos y sin entrar en rutas protegidas.
-fn walk(dir: &Path, prot: &Protected, skipped: &mut u64, visit: &mut dyn FnMut(&Path, &fs::Metadata)) {
+fn walk(dir: &Path, prot: &Protected, sys: &[PathBuf], skipped: &mut u64, visit: &mut dyn FnMut(&Path, &fs::Metadata)) {
     let Ok(read) = fs::read_dir(dir) else {
         *skipped += 1;
         return;
@@ -67,8 +126,8 @@ fn walk(dir: &Path, prot: &Protected, skipped: &mut u64, visit: &mut dyn FnMut(&
         let path = entry.path();
         if meta.is_dir() {
             let name = entry.file_name().to_string_lossy().to_lowercase();
-            if !SKIP_DIRS.contains(&name.as_str()) && !prot.is_protected(&path) {
-                walk(&path, prot, skipped, visit);
+            if !SKIP_DIRS.contains(&name.as_str()) && !prot.is_protected(&path) && !sys.iter().any(|t| inside(&path, t)) {
+                walk(&path, prot, sys, skipped, visit);
             }
         } else if meta.is_file() {
             visit(&path, &meta);
@@ -150,20 +209,27 @@ pub struct DupReport {
     /// Espacio que se recupera quedándose con una copia de cada grupo.
     pub wasted: u64,
     pub skipped: u64,
+    /// Carpetas y unidades que se recorrieron de verdad.
+    pub roots: Vec<String>,
 }
 
-/// Busca archivos idénticos de al menos `min_bytes` dentro de las carpetas elegidas.
-pub fn find_duplicates(folder_ids: &[String], min_bytes: u64) -> DupReport {
-    find_in(&roots_for(folder_ids), min_bytes, &Protected::from_env())
+/// Busca archivos idénticos de al menos `min_bytes` dentro de las carpetas y unidades elegidas.
+pub fn find_duplicates(folder_ids: &[String], extra: &[String], min_bytes: u64) -> DupReport {
+    find_in(&roots_for(folder_ids, extra), min_bytes, &Protected::from_env(), &system_trees())
 }
 
-fn find_in(roots: &[PathBuf], min_bytes: u64, prot: &Protected) -> DupReport {
-    let mut rep = DupReport::default();
+fn find_in(roots: &[PathBuf], min_bytes: u64, prot: &Protected, sys: &[PathBuf]) -> DupReport {
+    let mut rep = DupReport { roots: roots.iter().map(|r| r.to_string_lossy().into_owned()).collect(), ..Default::default() };
     let mut by_size: HashMap<u64, Vec<(PathBuf, u64)>> = HashMap::new();
+    let mut seen = HashSet::new();
     for root in roots {
-        walk(root, prot, &mut rep.skipped, &mut |p, m| {
+        walk(root, prot, sys, &mut rep.skipped, &mut |p, m| {
+            // Nunca el mismo archivo dos veces, aunque se llegue a él por dos raíces.
+            if !seen.insert(key(p)) {
+                return;
+            }
             rep.scanned += 1;
-            if m.len() >= min_bytes.max(1) {
+            if m.len() >= min_bytes.max(1) && !prot.is_protected(p) {
                 by_size.entry(m.len()).or_default().push((p.to_path_buf(), mtime(m)));
             }
         });
@@ -219,6 +285,24 @@ pub struct DupSelection {
 /// Mueve a la cuarentena las copias elegidas. Cada copia se vuelve a comparar byte a byte con la que se
 /// conserva (mismo tamaño y mismo contenido) justo antes de moverla; si algo cambió desde el escaneo, se deja.
 pub fn quarantine_duplicates(sel: &[DupSelection], quarantine_dir: &Path, batch: &str) -> CleanReport {
+    let (items, errors) = verified(sel);
+    let mut rep = quarantine_items(&items, quarantine_dir, batch);
+    rep.errors.extend(errors);
+    rep
+}
+
+/// Borra para siempre las copias elegidas, sin pasar por la cuarentena (ajuste opcional, avisado en la
+/// interfaz). Mismas comprobaciones que al mover: solo se borra lo que sigue siendo idéntico a la copia
+/// que se conserva, y esa copia nunca.
+pub fn delete_duplicates(sel: &[DupSelection]) -> CleanReport {
+    let (items, errors) = verified(sel);
+    let mut rep = delete_files(&items);
+    rep.errors.extend(errors);
+    rep
+}
+
+/// Copias que siguen siendo idénticas a la que se conserva, y los motivos de las que no se tocan.
+fn verified(sel: &[DupSelection]) -> (Vec<PathBuf>, Vec<String>) {
     let mut items = Vec::new();
     let mut errors = Vec::new();
     let mut pair = (Vec::new(), Vec::new());
@@ -244,9 +328,7 @@ pub fn quarantine_duplicates(sel: &[DupSelection], quarantine_dir: &Path, batch:
             }
         }
     }
-    let mut rep = quarantine_items(&items, quarantine_dir, batch);
-    rep.errors.extend(errors);
-    rep
+    (items, errors)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -257,16 +339,16 @@ pub struct OldFile {
 }
 
 /// Archivos de al menos `min_bytes` que no se han modificado en `older_than_days` días, los mayores primero.
-pub fn find_large_old(folder_ids: &[String], min_bytes: u64, older_than_days: u64, now_secs: u64) -> Vec<OldFile> {
-    large_old_in(&roots_for(folder_ids), min_bytes, older_than_days, now_secs, &Protected::from_env())
+pub fn find_large_old(folder_ids: &[String], extra: &[String], min_bytes: u64, older_than_days: u64, now_secs: u64) -> Vec<OldFile> {
+    large_old_in(&roots_for(folder_ids, extra), min_bytes, older_than_days, now_secs, &Protected::from_env(), &system_trees())
 }
 
-fn large_old_in(roots: &[PathBuf], min_bytes: u64, older_than_days: u64, now_secs: u64, prot: &Protected) -> Vec<OldFile> {
+fn large_old_in(roots: &[PathBuf], min_bytes: u64, older_than_days: u64, now_secs: u64, prot: &Protected, sys: &[PathBuf]) -> Vec<OldFile> {
     let limit = now_secs.saturating_sub(older_than_days * 86_400);
     let mut out = Vec::new();
     let mut skipped = 0;
     for root in roots {
-        walk(root, prot, &mut skipped, &mut |p, m| {
+        walk(root, prot, sys, &mut skipped, &mut |p, m| {
             let t = mtime(m);
             if m.len() >= min_bytes && t > 0 && t <= limit && !prot.is_protected(p) {
                 out.push(OldFile { path: p.to_string_lossy().into_owned(), bytes: m.len(), modified: t });
@@ -302,13 +384,13 @@ mod tests {
         write(t.path(), "c/pequeno.txt", b"hola");
         write(t.path(), "d/pequeno.txt", b"hola");
 
-        let rep = find_in(&[t.path().to_path_buf()], 1000, &Protected::new(&[], &[]));
+        let rep = find_in(&[t.path().to_path_buf()], 1000, &Protected::new(&[], &[]), &[]);
         assert_eq!(rep.groups.len(), 1, "{:?}", rep.groups);
         assert_eq!(rep.groups[0].files.len(), 2);
         assert_eq!(rep.wasted, 200_000);
 
         // Con umbral bajo también salen los pequeños.
-        let rep = find_in(&[t.path().to_path_buf()], 1, &Protected::new(&[], &[]));
+        let rep = find_in(&[t.path().to_path_buf()], 1, &Protected::new(&[], &[]), &[]);
         assert_eq!(rep.groups.len(), 2);
     }
 
@@ -328,10 +410,48 @@ mod tests {
         write(t.path(), "e/par.bin", &solo);
         write(t.path(), "f/par.bin", &solo2);
 
-        let rep = find_in(&[t.path().to_path_buf()], 1000, &Protected::new(&[], &[]));
+        let rep = find_in(&[t.path().to_path_buf()], 1000, &Protected::new(&[], &[]), &[]);
         assert_eq!(rep.groups.len(), 1, "{:?}", rep.groups);
         assert_eq!(rep.groups[0].files.len(), 3);
         assert_eq!(rep.wasted, 2 * data.len() as u64);
+    }
+
+    #[test]
+    fn nested_roots_do_not_turn_a_file_into_its_own_duplicate() {
+        let t = tempfile::tempdir().unwrap();
+        let data = vec![9u8; 5000];
+        write(t.path(), "descargas/solo.bin", &data);
+        let inner = t.path().join("descargas");
+        // La unidad entera y una carpeta dentro de ella, elegidas a la vez.
+        let roots = dedupe_roots(vec![inner.clone(), t.path().to_path_buf(), inner.clone()]);
+        assert_eq!(roots, [t.path().to_path_buf()]);
+        // Aunque llegaran repetidas, cada archivo se cuenta una vez.
+        let rep = find_in(&[t.path().to_path_buf(), inner], 1, &Protected::new(&[], &[]), &[]);
+        assert!(rep.groups.is_empty(), "{:?}", rep.groups);
+        assert_eq!(rep.scanned, 1);
+    }
+
+    #[test]
+    fn system_and_program_folders_are_never_walked() {
+        let t = tempfile::tempdir().unwrap();
+        let data = vec![1u8; 5000];
+        write(t.path(), "Program Files/App/lib.dll", &data);
+        write(t.path(), "Fotos/lib.dll", &data);
+        write(t.path(), "Fotos/otra/lib.dll", &data);
+        let sys = [t.path().join("program files")]; // sin distinguir mayúsculas, como Windows
+        let rep = find_in(&[t.path().to_path_buf()], 1, &Protected::new(&[], &[]), &sys);
+        assert_eq!(rep.groups.len(), 1);
+        assert!(rep.groups[0].files.iter().all(|f| !f.path.contains("Program Files")), "{:?}", rep.groups);
+        assert_eq!(rep.roots, [t.path().to_string_lossy().into_owned()]);
+    }
+
+    #[test]
+    fn hand_picked_folders_must_exist_and_be_absolute() {
+        let t = tempfile::tempdir().unwrap();
+        let ok = t.path().to_string_lossy().into_owned();
+        let missing = t.path().join("no-existe").to_string_lossy().into_owned();
+        let roots = roots_for(&[], &[ok.clone(), missing, "relativa".into(), format!("{ok}/../{ok}")]);
+        assert_eq!(roots, [t.path().to_path_buf()]);
     }
 
     #[test]
@@ -360,6 +480,22 @@ mod tests {
     }
 
     #[test]
+    fn direct_delete_checks_the_same_as_quarantine() {
+        let t = tempfile::tempdir().unwrap();
+        let keep = write(t.path(), "a/x.bin", b"contenido");
+        let same = write(t.path(), "b/x.bin", b"contenido");
+        let different = write(t.path(), "c/x.bin", b"OTRO CONTE");
+        let sel = [DupSelection {
+            keep: keep.to_string_lossy().into(),
+            remove: vec![same.to_string_lossy().into(), different.to_string_lossy().into(), keep.to_string_lossy().into()],
+        }];
+        let rep = delete_duplicates(&sel);
+        assert_eq!((rep.files, rep.bytes), (1, 9));
+        assert!(keep.exists() && different.exists() && !same.exists());
+        assert_eq!(rep.errors.len(), 2, "{:?}", rep.errors);
+    }
+
+    #[test]
     fn large_old_files_respect_size_age_and_protection() {
         let t = tempfile::tempdir().unwrap();
         let old = write(t.path(), "viejo.iso", &vec![1u8; 5000]);
@@ -373,13 +509,13 @@ mod tests {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         let prot = Protected::new(&[], &[]);
-        let found = large_old_in(&[t.path().to_path_buf()], 1000, 365, now, &prot);
+        let found = large_old_in(&[t.path().to_path_buf()], 1000, 365, now, &prot, &[]);
         let names: Vec<_> = found.iter().map(|f| Path::new(&f.path).file_name().unwrap().to_string_lossy().into_owned()).collect();
         assert_eq!(names, ["protegido.iso", "viejo.iso"], "mayor primero; sin nuevos, pequeños ni node_modules");
 
         // Una ruta protegida no se ofrece.
         let prot = Protected::new(&[t.path().join("protegido.iso")], &[]);
-        let found = large_old_in(&[t.path().to_path_buf()], 1000, 365, now, &prot);
+        let found = large_old_in(&[t.path().to_path_buf()], 1000, 365, now, &prot, &[]);
         assert_eq!(found.len(), 1);
     }
 }

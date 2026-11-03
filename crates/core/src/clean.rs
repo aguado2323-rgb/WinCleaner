@@ -188,6 +188,31 @@ pub fn quarantine_items(items: &[PathBuf], quarantine_dir: &Path, batch: &str) -
     ctx.rep
 }
 
+/// Borra para siempre archivos elegidos a mano, sin cuarentena (ajuste opcional de Duplicados).
+/// Solo archivos: nunca carpetas, enlaces simbólicos ni rutas protegidas del sistema.
+pub fn delete_files(items: &[PathBuf]) -> CleanReport {
+    let mut rep = CleanReport { rule_id: "delete".into(), ..Default::default() };
+    let protected = crate::protect::Protected::from_env();
+    for item in items {
+        if protected.is_protected(item) {
+            rep.errors.push(format!("protegido por seguridad: {}", item.display()));
+            continue;
+        }
+        match fs::symlink_metadata(item) {
+            Err(_) => rep.errors.push(format!("no existe: {}", item.display())),
+            Ok(m) if !m.is_file() => rep.errors.push(format!("no es un archivo, no se toca: {}", item.display())),
+            Ok(m) => match fs::remove_file(item) {
+                Ok(()) => {
+                    rep.files += 1;
+                    rep.bytes += m.len();
+                }
+                Err(e) => rep.errors.push(format!("{}: {e}", item.display())),
+            },
+        }
+    }
+    rep
+}
+
 pub fn scan_rule(rule: &Rule) -> ScanResult {
     let r = run(rule, &Mode::DryRun);
     ScanResult { rule_id: r.rule_id, files: r.files, bytes: r.bytes }

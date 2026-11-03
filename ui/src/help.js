@@ -105,7 +105,11 @@ export const H = {
 
   dupInfo: {
     risk: 'safe',
-    text: 'Compara el contenido de los archivos de las carpetas elegidas (no solo el nombre) y agrupa los que son idénticos. Tú eliges qué copia se queda; las demás van a la cuarentena, de donde se pueden restaurar. Antes de mover cada una se vuelve a comprobar que sigue siendo idéntica. No toca carpetas del sistema.',
+    text: 'Compara el contenido de los archivos (no solo el nombre) en las carpetas o unidades que elijas y agrupa los que son idénticos. Debajo de los botones se ve siempre dónde se está buscando. En cada grupo una copia queda marcada «Se conserva» (por defecto la más antigua; puedes cambiar la regla o pulsar en otra copia) y las demás, «A la cuarentena», de donde se pueden restaurar. Antes de mover cada una se vuelve a comprobar que sigue siendo idéntica. Windows, Archivos de programa y ProgramData nunca se revisan, aunque elijas la unidad entera.',
+  },
+  dupDirect: {
+    risk: 'final',
+    text: 'Apagado por defecto. Si lo activas, lo que elijas en Duplicados y en Grandes y antiguos se borra para siempre en vez de ir a la cuarentena: no pasa por la Papelera y no se puede restaurar. Sirve para archivos muy pesados o de otro disco: la cuarentena está en el disco de Windows y mover allí archivos grandes de otra unidad copia todos sus datos y puede llenarlo. Las comprobaciones son las mismas: solo se borran copias idénticas a la que se conserva, nunca carpetas ni archivos del sistema.',
   },
   oldInfo: {
     risk: 'safe',
